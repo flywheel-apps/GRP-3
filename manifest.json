@@ -1,0 +1,76 @@
+{
+	"name": "dicom-header-importer",
+	"label": "DICOM Header Importer",
+	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
+	"version": "0",
+	"inputs": {
+		"api-key": {
+			"base": "api-key"
+		},
+		"dicom": {
+			"base": "file",
+			"description": "Any dicom file.",
+			"optional": true,
+			"type": {
+				"enum": [
+					"dicom"
+				]
+			}
+		}
+	},
+	"config": {
+		"address": {
+			"default": "Example",
+			"description": "String example: any text.",
+			"type": "string"
+		},
+		"age": {
+			"default": 7,
+			"description": "Integer example: any whole number.",
+			"type": "integer"
+		},
+		"cost": {
+			"default": 3.5,
+			"description": "Float example: any real number.",
+			"type": "number"
+		},
+		"fast": {
+			"default": false,
+			"description": "Boolean example: a toggle.",
+			"type": "boolean"
+		},
+		"nickname": {
+			"default": "Jimmy",
+			"description": "String length example: 2 to 15 characters long.",
+			"maxLength": 15,
+			"minLength": 2,
+			"type": "string"
+		},
+		"phone": {
+			"default": "555-5555",
+			"description": "String regex example: any phone number, no area code.",
+			"pattern": "^[0-9]{3}-[0-9]{4}$",
+			"type": "string"
+		}
+	},
+	"environment": {
+		"GPG_KEY": "0D96DF4D4110E5C43FBFB17F2D347EA6AA65421D",
+		"LANG": "C.UTF-8",
+		"PATH": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"PYTHON_PIP_VERSION": "19.0.3",
+		"PYTHON_VERSION": "3.7.2"
+	},
+	"command": "./example.py",
+	"author": "Kaleb Fischer",
+	"maintainer": "Kaleb Fischer",
+	"cite": "List citations here.",
+	"license": "Other",
+	"source": "",
+	"url": "",
+	"custom": {
+		"gear-builder": {
+			"category": "converter",
+			"image": "python:3"
+		}
+	}
+}
