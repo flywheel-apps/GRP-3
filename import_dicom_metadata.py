@@ -401,16 +401,6 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     if series_desc:
         metadata['acquisition']['label'] = series_desc
 
-
-    # If no pixel data present, make classification intent "Non-Image"
-    if not hasattr(dcm, 'PixelData'):
-        nonimage_intent = {'Intent': ['Non-Image']}
-        # If classification is a dict, update dict with intent
-        if isinstance(pydicom_file['classification'], dict):
-            pydicom_file['classification'].update(nonimage_intent)
-        # Else classification is a list, assign dict with intent
-        else:
-            pydicom_file['classification'] = nonimage_intent
     if acquisition_timestamp:
         metadata['acquisition']['timestamp'] = acquisition_timestamp
 
