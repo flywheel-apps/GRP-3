@@ -10,7 +10,7 @@
 		"dicom": {
 			"base": "file",
 			"description": "Any dicom file.",
-			"optional": true,
+			"optional": false,
 			"type": {
 				"enum": [
 					"dicom"
@@ -18,41 +18,7 @@
 			}
 		}
 	},
-	"config": {
-		"address": {
-			"default": "Example",
-			"description": "String example: any text.",
-			"type": "string"
-		},
-		"age": {
-			"default": 7,
-			"description": "Integer example: any whole number.",
-			"type": "integer"
-		},
-		"cost": {
-			"default": 3.5,
-			"description": "Float example: any real number.",
-			"type": "number"
-		},
-		"fast": {
-			"default": false,
-			"description": "Boolean example: a toggle.",
-			"type": "boolean"
-		},
-		"nickname": {
-			"default": "Jimmy",
-			"description": "String length example: 2 to 15 characters long.",
-			"maxLength": 15,
-			"minLength": 2,
-			"type": "string"
-		},
-		"phone": {
-			"default": "555-5555",
-			"description": "String regex example: any phone number, no area code.",
-			"pattern": "^[0-9]{3}-[0-9]{4}$",
-			"type": "string"
-		}
-	},
+	"config": {},
 	"environment": {
 		"GPG_KEY": "0D96DF4D4110E5C43FBFB17F2D347EA6AA65421D",
 		"LANG": "C.UTF-8",
@@ -60,7 +26,7 @@
 		"PYTHON_PIP_VERSION": "19.0.3",
 		"PYTHON_VERSION": "3.7.2"
 	},
-	"command": "./example.py",
+	"command": "./import_dicom_metadata.py",
 	"author": "Kaleb Fischer",
 	"maintainer": "Kaleb Fischer",
 	"cite": "List citations here.",
@@ -70,7 +36,8 @@
 	"custom": {
 		"gear-builder": {
 			"category": "converter",
-			"image": "python:3"
+			"container": "d260b640bc288678ed467b43c5499ccb3468b9ac5fb706e403f446d75972092a",
+			"image": "gear-builder-mdfaclhdhu-20190401124932"
 		}
 	}
 }
