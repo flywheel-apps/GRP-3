@@ -3,6 +3,7 @@
 import os
 import re
 import json
+import jsonschema
 import pytz
 import pydicom
 import string
@@ -16,7 +17,7 @@ from fnmatch import fnmatch
 from pprint import pprint
 
 logging.basicConfig()
-log = logging.getLogger('import_dicom_metadata')
+log = logging.getLogger('grp-3')
 
 
 def get_session_label(dcm):
@@ -282,7 +283,7 @@ def get_classification_from_string(value):
             if last_key:
                 key = last_key
             else:
-                log.warn('Unknown classification format: {0}'.format(part))
+                log.warning('Unknown classification format: {0}'.format(part))
                 key = 'Custom'
             value = part
 
@@ -294,10 +295,56 @@ def get_classification_from_string(value):
     return result
 
 
+def validate_against_template(input_dict, template, error_log_path):
+    """
+    This is a function for validating a dictionary against a template. Given
+    an input_dict and a template object, it will create a JSON schema validator
+    and construct an object that is a list of error dictionaries. It will write a
+    JSON file to the specified error_log_path and return the validation_errors object as
+    well as log each error.message to log.errors
+
+    :param input_dict: a dictionary of DICOM header data to be validated
+    :param template: a template dictionary to validate against
+    :param error_log_path: the path to which to write error log JSON
+    :return: validation_errors, an object containing information on validation errors
+    """
+    # Initialize json schema validator
+    validator = jsonschema.Draft7Validator(template)
+    # Initialize list object for storing validation errors
+    validation_errors = []
+    for error in sorted(validator.iter_errors(input_dict), key=str):
+        # Create a temporary dictionary for the individual error
+        tmp_dict = {}
+        # Get error type
+        tmp_dict['error_type'] = error.validator
+        # Get error message and log it
+        tmp_dict['error_message'] = error.message
+        log.error(error.message)
+        # Required field errors are a little special and need to be handled
+        # separately to get the field. We don't get the schema because it
+        # will print the entire template schema
+        if error.validator == "required":
+            # Get the item failing validation from the error message
+            tmp_dict['item'] = 'info.' + error.message.split("'")[1]
+        else:
+            # Get the value of the field that failed validation
+            tmp_dict['error_value'] = error.instance
+            # Get the field that failed validation
+            tmp_dict['item'] = 'info.' + str(error.path.pop())
+            # Get the schema object used to validate in failed validation
+            tmp_dict['schema'] = error.schema
+        # Append individual error object to the return validation_errors object
+        validation_errors.append(tmp_dict)
+
+    with open(error_log_path, 'w') as outfile:
+        json.dump(validation_errors, outfile, separators=(', ', ': '), sort_keys=True, indent=4)
+    return validation_errors
+
+
 def dicom_to_json(zip_file_path, outbase, timezone):
     # Check for input file path
     if not os.path.exists(zip_file_path):
-        log.debug('could not find %s' %  zip_file_path)
+        log.debug('could not find %s' % zip_file_path)
         log.debug('checking input directory ...')
         if os.path.exists(os.path.join('/input', zip_file_path)):
             zip_file_path = os.path.join('/input', zip_file_path)
@@ -312,7 +359,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     if zipfile.is_zipfile(zip_file_path):
         zip = zipfile.ZipFile(zip_file_path)
         num_files = len(zip.namelist())
-        for n in range((num_files -1), -1, -1):
+        for n in range((num_files - 1), -1, -1):
             dcm_path = zip.extract(zip.namelist()[n], '/tmp')
             if os.path.isfile(dcm_path):
                 try:
@@ -322,7 +369,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
                     # are other pydicom files in the zip then we read the next one,
                     # if this is the only class of pydicom in the file, we accept
                     # our fate and move on.
-                    if dcm.get('SOPClassUID') == 'Raw Data Storage' and n != range((num_files -1), -1, -1)[-1]:
+                    if dcm.get('SOPClassUID') == 'Raw Data Storage' and n != range((num_files - 1), -1, -1)[-1]:
                         continue
                     else:
                         break
@@ -333,7 +380,6 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     else:
         log.info('Not a zip. Attempting to read %s directly' % os.path.basename(zip_file_path))
         dcm = pydicom.read_file(zip_file_path)
-
 
     if not dcm:
         log.warning('dcm is empty!!!')
@@ -391,7 +437,6 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     pydicom_file['name'] = os.path.basename(zip_file_path)
     pydicom_file['modality'] = format_string(dcm.get('Modality', 'MR'))
 
-
     # Acquisition metadata
     metadata['acquisition'] = {}
     if hasattr(dcm, 'Modality') and dcm.get('Modality'):
@@ -406,6 +451,10 @@ def dicom_to_json(zip_file_path, outbase, timezone):
 
     # Acquisition metadata from pydicom header
     pydicom_file['info'] = get_pydicom_header(dcm)
+
+    # Validate header data
+    error_filepath = os.path.join(output_folder, 'log.error.json')
+    validate_against_template(pydicom_file['info'], json_template, error_filepath)
 
     # Append the pydicom_file to the files array
     metadata['acquisition']['files'] = [pydicom_file]
@@ -443,6 +492,9 @@ with open(config_file_path) as config_data:
 dicom_filepath = config['inputs']['dicom']['location']['path']
 dicom_name = config['inputs']['dicom']['location']['name']
 
+# Determine template json filepath
+template_filepath = config['inputs']['json_template']['location']['path']
+
 # Declare the output path
 output_filepath = os.path.join(output_folder, '.metadata.json')
 
@@ -451,5 +503,10 @@ hierarchy_level = config['inputs']['dicom']['hierarchy']['type']
 
 # Configure timezone
 timezone = validate_timezone(tzlocal.get_localzone())
+
+# Import JSON template
+with open(template_filepath) as template_data:
+    json_template = json.load(template_data)
+
 
 metadatafile = dicom_to_json(dicom_filepath, output_filepath, timezone)

@@ -4,9 +4,6 @@
 	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
 	"version": "0",
 	"inputs": {
-		"api-key": {
-			"base": "api-key"
-		},
 		"dicom": {
 			"base": "file",
 			"description": "Any dicom file.",
@@ -14,6 +11,16 @@
 			"type": {
 				"enum": [
 					"dicom"
+				]
+			}
+		},
+		"json_template": {
+			"base": "file",
+			"description": "A JSON template to validate DICOM data",
+			"optional": false,
+			"type": {
+				"enum": [
+					"source code"
 				]
 			}
 		}
@@ -36,8 +43,8 @@
 	"custom": {
 		"gear-builder": {
 			"category": "converter",
-			"container": "d260b640bc288678ed467b43c5499ccb3468b9ac5fb706e403f446d75972092a",
-			"image": "gear-builder-mdfaclhdhu-20190401124932"
+			"container": "8447f25da813e8e2ccefbc48f731cb4e19dab23f496b2459522226d3cbecb44c",
+			"image": "gear-builder-yetdvedkgv-20190409133320"
 		}
 	}
 }

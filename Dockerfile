@@ -5,7 +5,7 @@ FROM python:3.7
 MAINTAINER Flywheel <support@flywheel.io>
 
 # Install pandas
-RUN pip install nibabel pydicom pytz tzlocal
+RUN pip install jsonschema nibabel pydicom pytz tzlocal
 
 # Flywheel spec (v0)
 WORKDIR /flywheel/v0

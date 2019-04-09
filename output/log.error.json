@@ -1,0 +1,239 @@
+[
+    {
+        "error_message": "'1' does not match '/^\\\\d{1,}/'", 
+        "error_type": "pattern", 
+        "error_value": "1", 
+        "item": "info.StudyID", 
+        "schema": {
+            "description": "StudyID must match /^[0-9]{1+}/. Example. 1", 
+            "pattern": "/^\\d{1,}/", 
+            "type": "number"
+        }
+    }, 
+    {
+        "error_message": "'1' is not of type 'number'", 
+        "error_type": "type", 
+        "error_value": "1", 
+        "item": "info.StudyID", 
+        "schema": {
+            "description": "StudyID must match /^[0-9]{1+}/. Example. 1", 
+            "pattern": "/^\\d{1,}/", 
+            "type": "number"
+        }
+    }, 
+    {
+        "error_message": "'1.3.12.2.1107.5.2.43.166010.2018021417453126383644060.0.0.0' does not match '/^\\\\d{1}\\\\.\\\\d{1}(\\\\.\\\\d{1,55})?$/'", 
+        "error_type": "pattern", 
+        "error_value": "1.3.12.2.1107.5.2.43.166010.2018021417453126383644060.0.0.0", 
+        "item": "info.SeriesInstanceUID", 
+        "schema": {
+            "description": "SeriesInstanceUID must match above pattern. Example. 1.3.12.2.1107.5.2.43.167004.2019030318311045850440175.0.0.0", 
+            "pattern": "/^\\d{1}\\.\\d{1}(\\.\\d{1,55})?$/", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "'1.3.12.2.1107.5.2.43.166010.30000018021415404525000000013' does not match '/^\\\\d{1}\\\\.\\\\d{1}(\\\\.\\\\d{1,55})?$/'", 
+        "error_type": "pattern", 
+        "error_value": "1.3.12.2.1107.5.2.43.166010.30000018021415404525000000013", 
+        "item": "info.StudyInstanceUID", 
+        "schema": {
+            "description": "StudyInstanceUID is an optional field. Example. 1.3.12.2.1107.5.2.43.167004.30000019022812230075700000061", 
+            "pattern": "/^\\d{1}\\.\\d{1}(\\.\\d{1,55})?$/", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "'3D' does not match '/[A-Za-z0-9-_.,!\"\\'/$]*/'", 
+        "error_type": "pattern", 
+        "error_value": "3D", 
+        "item": "info.MRAcquisitionType", 
+        "schema": {
+            "description": "MRAcquisitionType could be any string, /[A-Za-z0-9-_.,!\"'/$]*/\". Example. 2D, 3D_GRASE", 
+            "pattern": "/[A-Za-z0-9-_.,!\"'/$]*/", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "'BRAIN' does not match '/^[A-Za-z]{1,}/'", 
+        "error_type": "pattern", 
+        "error_value": "BRAIN", 
+        "item": "info.BodyPartExamined", 
+        "schema": {
+            "description": "BodyPartExamined must match /^[A-Za-z]{1+}/. Example. BRAIN", 
+            "pattern": "/^[A-Za-z]{1,}/", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "'ClinicalTrialTimePointDescription' is a required property", 
+        "error_type": "required", 
+        "item": "info.ClinicalTrialTimePointDescription"
+    }, 
+    {
+        "error_message": "'ClinicalTrialTimePointID' is a required property", 
+        "error_type": "required", 
+        "item": "info.ClinicalTrialTimePointID"
+    }, 
+    {
+        "error_message": "'MR' does not match '/MR/'", 
+        "error_type": "pattern", 
+        "error_value": "MR", 
+        "item": "info.Modality", 
+        "schema": {
+            "description": "Modality must match 'MR'", 
+            "pattern": "/MR/", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "'SP' does not match '/^[A-Za-z0-9]{1+}/'", 
+        "error_type": "pattern", 
+        "error_value": "SP", 
+        "item": "info.PatientID", 
+        "schema": {
+            "description": "PatientID must match ^[A-Za-z0-9]{1+}/. Example. S001", 
+            "pattern": "/^[A-Za-z0-9]{1+}/", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "'t1_mprage_sag_p2_1mm_iso' does not match '/^[A-Za-z_\\\\-0-9]{1,}'", 
+        "error_type": "pattern", 
+        "error_value": "t1_mprage_sag_p2_1mm_iso", 
+        "item": "info.SeriesDescription", 
+        "schema": {
+            "description": "SeriesDescription must match /^[A-Za-z]{1+}/. Example. RetinotopicAtlas_Run1, fmri-head", 
+            "pattern": "/^[A-Za-z_\\-0-9]{1,}", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "0.05852790064321 is not of type 'string'", 
+        "error_type": "type", 
+        "error_value": 0.05852790064321, 
+        "item": "info.SAR", 
+        "schema": {
+            "description": "SAR is an optional field. Example. 0.0593594", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "1 is not of type 'string'", 
+        "error_type": "type", 
+        "error_value": 1, 
+        "item": "info.AcquisitionNumber", 
+        "schema": {
+            "description": "AcquisitionNumber is an optional field. Example. 1", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "1 is not of type 'string'", 
+        "error_type": "type", 
+        "error_value": 1, 
+        "item": "info.EchoTrainLength", 
+        "schema": {
+            "description": "EchoTrainLength is an optional field. Example. 84", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "200 is not of type 'string'", 
+        "error_type": "type", 
+        "error_value": 200, 
+        "item": "info.PixelBandwidth", 
+        "schema": {
+            "description": "PixelBandwidth is an optional field. Example. 2365", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "5 is not of type 'string'", 
+        "error_type": "type", 
+        "error_value": 5, 
+        "item": "info.SeriesNumber", 
+        "schema": {
+            "description": "SeriesNumber is an optional field. Example. 62", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "55.7918686071 is not of type 'string'", 
+        "error_type": "type", 
+        "error_value": 55.7918686071, 
+        "item": "info.PatientWeight", 
+        "schema": {
+            "description": "PatientWeight is an optional field. Example. 80", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "8 is not of type 'string'", 
+        "error_type": "type", 
+        "error_value": 8, 
+        "item": "info.FlipAngle", 
+        "schema": {
+            "description": "FlipAngle is an optional field. Example. 75", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "['GR', 'IR'] is not of type 'string'", 
+        "error_type": "type", 
+        "error_value": [
+            "GR", 
+            "IR"
+        ], 
+        "item": "info.ScanningSequence", 
+        "schema": {
+            "description": "ScanningSequence is required and can be any string. Example. EPI", 
+            "pattern": "/[A-Za-z0-9-_.,!\"'/$]*/", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "['ORIGINAL', 'PRIMARY', 'M', 'ND', 'NORM'] is not of type 'string'", 
+        "error_type": "type", 
+        "error_value": [
+            "ORIGINAL", 
+            "PRIMARY", 
+            "M", 
+            "ND", 
+            "NORM"
+        ], 
+        "item": "info.ImageType", 
+        "schema": {
+            "description": "ImageType is an optional field. Example. Mosaic", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "['SK', 'SP', 'MP'] is not of type 'string'", 
+        "error_type": "type", 
+        "error_value": [
+            "SK", 
+            "SP", 
+            "MP"
+        ], 
+        "item": "info.SequenceVariant", 
+        "schema": {
+            "description": "SequenceVariant is an optional field. Example. SK_SS", 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "[1, 1] is not of type 'number'", 
+        "error_type": "type", 
+        "error_value": [
+            1, 
+            1
+        ], 
+        "item": "info.PixelSpacing", 
+        "schema": {
+            "description": "PixelSpacing must match /^\\d{0,2}(\\.\\d{1,})?$/. Example: 2 or 2.5433", 
+            "pattern": "/^\\d{0,2}(\\.\\d{1,})?$/", 
+            "type": "number"
+        }
+    }
+]
