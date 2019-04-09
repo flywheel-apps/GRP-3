@@ -453,7 +453,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     pydicom_file['info'] = get_pydicom_header(dcm)
 
     # Validate header data
-    error_filepath = os.path.join(output_folder, 'log.error.json')
+    error_filepath = os.path.join(output_folder, 'error.log.json')
     validation_errors = validate_against_template(pydicom_file['info'], json_template, error_filepath)
     if validation_errors:
         metadata['acquisition']['tags'] = ['error']
@@ -509,6 +509,5 @@ timezone = validate_timezone(tzlocal.get_localzone())
 # Import JSON template
 with open(template_filepath) as template_data:
     json_template = json.load(template_data)
-
 
 metadatafile = dicom_to_json(dicom_filepath, output_filepath, timezone)
