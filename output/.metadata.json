@@ -260,6 +260,9 @@
             "WindowWidth": 568, 
             "dBdt": 0
         }, 
+        "tags": [
+            "error"
+        ], 
         "timestamp": "2018-02-14T17:45:32+00:00"
     }, 
     "session": {

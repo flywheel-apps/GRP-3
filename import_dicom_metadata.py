@@ -454,7 +454,9 @@ def dicom_to_json(zip_file_path, outbase, timezone):
 
     # Validate header data
     error_filepath = os.path.join(output_folder, 'log.error.json')
-    validate_against_template(pydicom_file['info'], json_template, error_filepath)
+    validation_errors = validate_against_template(pydicom_file['info'], json_template, error_filepath)
+    if validation_errors:
+        metadata['acquisition']['tags'] = ['error']
 
     # Append the pydicom_file to the files array
     metadata['acquisition']['files'] = [pydicom_file]
