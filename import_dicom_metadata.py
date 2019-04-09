@@ -479,35 +479,36 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     return metafile_outname
 
 
-# Gear basics
-input_folder = '/flywheel/v0/input/file/'
-output_folder = '/flywheel/v0/output/'
+if __name__ == '__main__':
+    # Gear basics
+    input_folder = '/flywheel/v0/input/file/'
+    output_folder = '/flywheel/v0/output/'
 
-# Declare config file path
-config_file_path = '/flywheel/v0/config.json'
+    # Declare config file path
+    config_file_path = '/flywheel/v0/config.json'
 
-# Load config file
-with open(config_file_path) as config_data:
-    config = json.load(config_data)
+    # Load config file
+    with open(config_file_path) as config_data:
+        config = json.load(config_data)
 
-# Determine dicom zip path and name
-dicom_filepath = config['inputs']['dicom']['location']['path']
-dicom_name = config['inputs']['dicom']['location']['name']
+    # Determine dicom zip path and name
+    dicom_filepath = config['inputs']['dicom']['location']['path']
+    dicom_name = config['inputs']['dicom']['location']['name']
 
-# Determine template json filepath
-template_filepath = config['inputs']['json_template']['location']['path']
+    # Determine template json filepath
+    template_filepath = config['inputs']['json_template']['location']['path']
 
-# Declare the output path
-output_filepath = os.path.join(output_folder, '.metadata.json')
+    # Declare the output path
+    output_filepath = os.path.join(output_folder, '.metadata.json')
 
-# Determine the level from which the gear was invoked
-hierarchy_level = config['inputs']['dicom']['hierarchy']['type']
+    # Determine the level from which the gear was invoked
+    hierarchy_level = config['inputs']['dicom']['hierarchy']['type']
 
-# Configure timezone
-timezone = validate_timezone(tzlocal.get_localzone())
+    # Configure timezone
+    timezone = validate_timezone(tzlocal.get_localzone())
 
-# Import JSON template
-with open(template_filepath) as template_data:
-    json_template = json.load(template_data)
+    # Import JSON template
+    with open(template_filepath) as template_data:
+        json_template = json.load(template_data)
 
-metadatafile = dicom_to_json(dicom_filepath, output_filepath, timezone)
+    metadatafile = dicom_to_json(dicom_filepath, output_filepath, timezone)
