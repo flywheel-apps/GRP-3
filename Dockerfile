@@ -1,19 +1,24 @@
 #flywheel/csv-import
 
 # Start with python 3.7
-FROM python:3.7
+FROM python:3.7 as base
 MAINTAINER Flywheel <support@flywheel.io>
 
 # Install pandas
-RUN pip install jsonschema nibabel pydicom pytz tzlocal
+COPY requirements.txt ./requirements.txt
+RUN pip install -r requirements.txt
 
 # Flywheel spec (v0)
 WORKDIR /flywheel/v0
 
 # Copy executables into place
-COPY spreadheet_importer.py ./run
-COPY manifest.json  .
-RUN chmod +x run manifest.json
+COPY import_dicom_metadata.py ./run.py
 
-# Set the entrypoint
-ENTRYPOINT ["/flywheel/v0/run"]
+# Add a default command
+CMD ["python run.py"]
+
+# Make a target for testing locally
+FROM base as testing
+COPY tests ./tests
+RUN pip install -r tests/requirements.txt
+
