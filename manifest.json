@@ -2,7 +2,7 @@
 	"name": "dicom-header-importer",
 	"label": "DICOM Header Importer",
 	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
-	"version": "0",
+	"version": "1",
 	"inputs": {
 		"dicom": {
 			"base": "file",
