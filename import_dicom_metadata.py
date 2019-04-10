@@ -326,13 +326,18 @@ def validate_against_template(input_dict, template, error_log_path):
         if error.validator == "required":
             # Get the item failing validation from the error message
             tmp_dict['item'] = 'info.' + error.message.split("'")[1]
-        else:
+        # Get additional information for pattern and type errors
+        elif error.validator in ("pattern", "type"):
             # Get the value of the field that failed validation
             tmp_dict['error_value'] = error.instance
             # Get the field that failed validation
             tmp_dict['item'] = 'info.' + str(error.path.pop())
             # Get the schema object used to validate in failed validation
             tmp_dict['schema'] = error.schema
+        elif error.validator == "anyOf":
+            tmp_dict['schema'] = {"anyOf": error.schema['anyOf']}
+        else:
+            pass
         # Append individual error object to the return validation_errors object
         validation_errors.append(tmp_dict)
 
