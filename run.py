@@ -331,7 +331,7 @@ def validate_against_template(input_dict, template, error_log_path):
             # Get the value of the field that failed validation
             tmp_dict['error_value'] = error.instance
             # Get the field that failed validation
-            tmp_dict['item'] = 'info.' + str(error.path.pop())
+            tmp_dict['item'] = 'info.header.dicom.' + str(error.path.pop())
             # Get the schema object used to validate in failed validation
             tmp_dict['schema'] = error.schema
         elif error.validator == "anyOf":
