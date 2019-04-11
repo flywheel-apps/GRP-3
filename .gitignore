@@ -2,3 +2,8 @@
 *.xml
 *.iml
 notebooks/error.log.json
+.DS_Store
+notebooks/A.zip
+output/error.log.json
+output/.metadata.json
+output/.metadata.json

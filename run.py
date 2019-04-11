@@ -441,6 +441,11 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     pydicom_file = {}
     pydicom_file['name'] = os.path.basename(zip_file_path)
     pydicom_file['modality'] = format_string(dcm.get('Modality', 'MR'))
+    pydicom_file['info'] = {
+        "header": {
+            "dicom": {}
+        }
+    }
 
     # Acquisition metadata
     metadata['acquisition'] = {}
@@ -455,7 +460,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
         metadata['acquisition']['timestamp'] = acquisition_timestamp
 
     # Acquisition metadata from pydicom header
-    pydicom_file['info'] = get_pydicom_header(dcm)
+    pydicom_file['info']['header']['dicom'] = get_pydicom_header(dcm)
 
     # Validate header data
     error_filepath = os.path.join(output_folder, 'error.log.json')

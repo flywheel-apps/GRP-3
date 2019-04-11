@@ -1,5 +1,5 @@
 import pytest
-import import_dicom_metadata as idm
+import run as idm
 
 SECONDS_IN_DAY = 24 * 60 * 60
 SECONDS_IN_WEEK = 7 * SECONDS_IN_DAY
