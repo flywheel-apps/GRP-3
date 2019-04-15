@@ -9,20 +9,5 @@
             "pattern": "^[0-9]{5}$", 
             "type": "string"
         }
-    }, 
-    {
-        "error_message": "['ORIGINAL', 'PRIMARY', 'OTHER'] is not of type 'string'", 
-        "error_type": "type", 
-        "error_value": [
-            "ORIGINAL", 
-            "PRIMARY", 
-            "OTHER"
-        ], 
-        "item": "info.header.dicom.ImageType", 
-        "schema": {
-            "description": "ImageType cannot be 'SCREEN SAVE'", 
-            "pattern": "^(?!SCREEN SAVE).*$", 
-            "type": "string"
-        }
     }
 ]

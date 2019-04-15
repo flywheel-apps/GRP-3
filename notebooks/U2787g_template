@@ -2,8 +2,10 @@
   "properties": {
     "ImageType": {
             "description": "ImageType cannot be 'SCREEN SAVE'",
-            "type": "string",
-            "pattern": "^(?!SCREEN SAVE).*$"
+            "type": "array",
+            "items": {
+              "not": {"enum":["SCREEN SAVE"]}
+            }
         },
     "Modality": {
             "description": "Modality must match 'MR'",

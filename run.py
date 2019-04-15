@@ -13,6 +13,7 @@ import zipfile
 import datetime
 import argparse
 import nibabel
+import pandas as pd
 from fnmatch import fnmatch
 from pprint import pprint
 
@@ -346,6 +347,29 @@ def validate_against_template(input_dict, template, error_log_path):
     return validation_errors
 
 
+def classify_dicom(dcm,slice_number, uniqueIOP):
+    tr = dcm.get('RepetitionTime')
+    te = dcm.get('EchoTime')
+    ti = dcm.get('InversionTime')
+    sd = dcm.get('SeriesDescription')
+    classification_dict = {}
+    if te < 30 and tr < 800:
+        classification_dict['Measurement'] = ["T1"]
+    elif te > 50 and tr > 2000 and ti == 0:
+        classification_dict['Measurement'] = ["T2"]
+    elif te > 50 and tr > 8000 and (3000 > ti > 1500):
+        classification_dict['Measurement'] = ["FLAIR"]
+    elif te < 50 and tr > 1000:
+        classification_dict['Measurement'] = ["PD"]
+    if re.search('POST', sd, flags=re.IGNORECASE):
+        classification_dict['Custom'] = ['Contrast']
+    if slice_number < 10:
+        classification_dict['Intent'] = ['Localizer']
+    if uniqueIOP:
+        classification_dict['Intent'] = ['3-Plane Localizer']
+    return classification_dict
+
+
 def dicom_to_json(zip_file_path, outbase, timezone):
     # Check for input file path
     if not os.path.exists(zip_file_path):
@@ -360,28 +384,31 @@ def dicom_to_json(zip_file_path, outbase, timezone):
         log.info('setting outbase to %s' % outbase)
 
     # Extract the last file in the zip to /tmp/ and read it
-    dcm = []
+
     if zipfile.is_zipfile(zip_file_path):
+        dcm_list = []
         zip = zipfile.ZipFile(zip_file_path)
         num_files = len(zip.namelist())
         for n in range((num_files - 1), -1, -1):
             dcm_path = zip.extract(zip.namelist()[n], '/tmp')
+            dcm_tmp = None
             if os.path.isfile(dcm_path):
                 try:
                     log.info('reading %s' % dcm_path)
-                    dcm = pydicom.read_file(dcm_path)
+                    dcm_tmp = pydicom.read_file(dcm_path)
                     # Here we check for the Raw Data Storage SOP Class, if there
                     # are other pydicom files in the zip then we read the next one,
                     # if this is the only class of pydicom in the file, we accept
                     # our fate and move on.
-                    if dcm.get('SOPClassUID') == 'Raw Data Storage' and n != range((num_files - 1), -1, -1)[-1]:
+                    if dcm_tmp.get('SOPClassUID') == 'Raw Data Storage' and n != range((num_files - 1), -1, -1)[-1]:
                         continue
                     else:
-                        break
+                        dcm_list.append(dcm_tmp)
                 except:
                     pass
             else:
                 log.warning('%s does not exist!' % dcm_path)
+        dcm = dcm_list[-1]
     else:
         log.info('Not a zip. Attempting to read %s directly' % os.path.basename(zip_file_path))
         dcm = pydicom.read_file(zip_file_path)
@@ -389,6 +416,19 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     if not dcm:
         log.warning('dcm is empty!!!')
         os.sys.exit(1)
+
+    # Create pandas object
+    df_list = []
+    for header in dcm_list:
+        tmp_dict = get_pydicom_header(header)
+        for key in tmp_dict:
+            if type(tmp_dict[key]) == list:
+                tmp_dict[key] = str(tmp_dict[key])
+            else:
+                tmp_dict[key] = [tmp_dict[key]]
+        df_tmp = pd.DataFrame.from_dict(tmp_dict)
+        df_list.append(df_tmp)
+    df = pd.concat(df_list, ignore_index=True)
 
     # Build metadata
     metadata = {}
@@ -446,6 +486,12 @@ def dicom_to_json(zip_file_path, outbase, timezone):
             "dicom": {}
         }
     }
+    # Determine how many DICOM files are in directory
+    slice_number = len(df)
+    # Determine whether ImageOrientationPatient is constant
+    uniqueiop = df.ImageOrientationPatient.is_unique
+
+    pydicom_file['classification'] = classify_dicom(dcm, slice_number, uniqueiop)
 
     # Acquisition metadata
     metadata['acquisition'] = {}
@@ -517,8 +563,40 @@ if __name__ == '__main__':
     # Configure timezone
     timezone = validate_timezone(tzlocal.get_localzone())
 
+    # Set default validation template
+    template = {
+      "properties": {
+        "ImageType": {
+                "description": "ImageType cannot be 'SCREEN SAVE'",
+                "type": "array",
+                "items": {
+                  "not": {"enum":["SCREEN SAVE"]}
+                }
+            },
+        "Modality": {
+                "description": "Modality must match 'MR'",
+                "pattern": "MR",
+                "type": "string"
+            },
+        "PatientID": {
+                "description": "PatientID must be 5 numeric characters",
+                "pattern": "^[0-9]{5}$",
+                "type": "string"
+            }
+      },
+      "type": "object",
+      "anyOf": [
+        {"required": ["AcquisitionDate"]},
+        {"required": ["SeriesDate"]},
+        {"required": ["StudyDate"]}
+      ]
+    }
+
     # Import JSON template
     with open(template_filepath) as template_data:
-        json_template = json.load(template_data)
+        import_template = json.load(template_data)
+
+    template.update(import_template)
+    json_template = template.copy()
 
     metadatafile = dicom_to_json(dicom_filepath, output_filepath, timezone)

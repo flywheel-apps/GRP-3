@@ -2,6 +2,11 @@
     "acquisition": {
         "files": [
             {
+                "classification": {
+                    "Measurement": [
+                        "T2"
+                    ]
+                }, 
                 "info": {
                     "header": {
                         "dicom": {
@@ -42,7 +47,7 @@
                             "ImagePositionPatient": [
                                 -118, 
                                 -130, 
-                                -52
+                                19
                             ], 
                             "ImageType": [
                                 "ORIGINAL", 
@@ -53,10 +58,10 @@
                             "ImagesInAcquisition": 53, 
                             "ImagingFrequency": 63.840478, 
                             "InPlanePhaseEncodingDirection": "ROW", 
-                            "InstanceNumber": 13, 
+                            "InstanceNumber": 37, 
                             "InstitutionName": "MEMORIAL MEDICAL CENTER", 
                             "InversionTime": 0, 
-                            "LargestImagePixelValue": 1093, 
+                            "LargestImagePixelValue": 903, 
                             "MRAcquisitionType": "2D", 
                             "MagneticFieldStrength": 1.5, 
                             "Manufacturer": "GE MEDICAL SYSTEMS", 
@@ -90,7 +95,7 @@
                             "Rows": 256, 
                             "SAR": 0.0305, 
                             "SOPClassUID": "1.2.840.10008.5.1.4.1.1.4", 
-                            "SOPInstanceUID": "1.2.840.113619.2.176.3596.6688930.8149.1119540053.986", 
+                            "SOPInstanceUID": "1.2.840.113619.2.176.3596.6688930.8149.1119540053.998", 
                             "SamplesPerPixel": 1, 
                             "ScanOptions": [
                                 "SAT_GEMS", 
@@ -104,7 +109,7 @@
                             "SeriesInstanceUID": "1.2.840.113619.2.176.3596.6688930.8424.1119539805.644", 
                             "SeriesNumber": 3, 
                             "SeriesTime": "083051", 
-                            "SliceLocation": -52.71968079, 
+                            "SliceLocation": 19.28013992, 
                             "SliceThickness": 3, 
                             "SmallestImagePixelValue": 0, 
                             "SoftwareVersions": [
@@ -122,8 +127,8 @@
                             "StudyTime": "082053", 
                             "TriggerWindow": 0, 
                             "VariableFlipAngleFlag": "N", 
-                            "WindowCenter": 546, 
-                            "WindowWidth": 1093
+                            "WindowCenter": 451, 
+                            "WindowWidth": 903
                         }
                     }
                 }, 
@@ -171,7 +176,7 @@
             "ImagePositionPatient": [
                 -118, 
                 -130, 
-                -52
+                19
             ], 
             "ImageType": [
                 "ORIGINAL", 
@@ -182,10 +187,10 @@
             "ImagesInAcquisition": 53, 
             "ImagingFrequency": 63.840478, 
             "InPlanePhaseEncodingDirection": "ROW", 
-            "InstanceNumber": 13, 
+            "InstanceNumber": 37, 
             "InstitutionName": "MEMORIAL MEDICAL CENTER", 
             "InversionTime": 0, 
-            "LargestImagePixelValue": 1093, 
+            "LargestImagePixelValue": 903, 
             "MRAcquisitionType": "2D", 
             "MagneticFieldStrength": 1.5, 
             "Manufacturer": "GE MEDICAL SYSTEMS", 
@@ -219,7 +224,7 @@
             "Rows": 256, 
             "SAR": 0.0305, 
             "SOPClassUID": "1.2.840.10008.5.1.4.1.1.4", 
-            "SOPInstanceUID": "1.2.840.113619.2.176.3596.6688930.8149.1119540053.986", 
+            "SOPInstanceUID": "1.2.840.113619.2.176.3596.6688930.8149.1119540053.998", 
             "SamplesPerPixel": 1, 
             "ScanOptions": [
                 "SAT_GEMS", 
@@ -233,7 +238,7 @@
             "SeriesInstanceUID": "1.2.840.113619.2.176.3596.6688930.8424.1119539805.644", 
             "SeriesNumber": 3, 
             "SeriesTime": "083051", 
-            "SliceLocation": -52.71968079, 
+            "SliceLocation": 19.28013992, 
             "SliceThickness": 3, 
             "SmallestImagePixelValue": 0, 
             "SoftwareVersions": [
@@ -251,8 +256,8 @@
             "StudyTime": "082053", 
             "TriggerWindow": 0, 
             "VariableFlipAngleFlag": "N", 
-            "WindowCenter": 546, 
-            "WindowWidth": 1093
+            "WindowCenter": 451, 
+            "WindowWidth": 903
         }, 
         "tags": [
             "error"
