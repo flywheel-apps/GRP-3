@@ -407,6 +407,18 @@ def validate_against_rules(df):
     return error_list
 
 
+def dicom_date_handler(dcm):
+    if dcm.get('AcquisitionDate'):
+        pass
+    elif dcm.get('SeriesDate'):
+        dcm.AcquisitionDate = dcm.get('SeriesDate')
+    elif dcm.get('StudyDate'):
+        dcm.AcquisitionDate = dcm.get('StudyDate')
+    else:
+        log.warning('No date found for DICOM file')
+    return dcm
+
+
 def dicom_to_json(zip_file_path, outbase, timezone):
     # Check for input file path
     if not os.path.exists(zip_file_path):
@@ -453,6 +465,8 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     if not dcm:
         log.warning('dcm is empty!!!')
         os.sys.exit(1)
+    # Handle date on dcm
+    dcm = dicom_date_handler(dcm)
 
     # Create pandas object
     df_list = []
