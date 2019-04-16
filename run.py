@@ -296,7 +296,7 @@ def get_classification_from_string(value):
     return result
 
 
-def validate_against_template(input_dict, template, error_log_path):
+def validate_against_template(input_dict, template):
     """
     This is a function for validating a dictionary against a template. Given
     an input_dict and a template object, it will create a JSON schema validator
@@ -339,15 +339,15 @@ def validate_against_template(input_dict, template, error_log_path):
             tmp_dict['schema'] = {"anyOf": error.schema['anyOf']}
         else:
             pass
+        # revalidate key so that validation errors can be revalidated in the future
+        tmp_dict['revalidate'] = True
         # Append individual error object to the return validation_errors object
         validation_errors.append(tmp_dict)
 
-    with open(error_log_path, 'w') as outfile:
-        json.dump(validation_errors, outfile, separators=(', ', ': '), sort_keys=True, indent=4)
     return validation_errors
 
 
-def classify_dicom(dcm,slice_number, uniqueIOP):
+def classify_dicom(dcm, slice_number, unique_iop):
     tr = dcm.get('RepetitionTime')
     te = dcm.get('EchoTime')
     ti = dcm.get('InversionTime')
@@ -365,9 +365,46 @@ def classify_dicom(dcm,slice_number, uniqueIOP):
         classification_dict['Custom'] = ['Contrast']
     if slice_number < 10:
         classification_dict['Intent'] = ['Localizer']
-    if uniqueIOP:
+    if unique_iop:
         classification_dict['Intent'] = ['3-Plane Localizer']
     return classification_dict
+
+
+def validate_against_rules(df):
+    error_list = []
+    # Determine if InstanceNumber is unique (not duplicated)
+    if 'InstanceNumber' in df:
+        if df['InstanceNumber'].is_unique:
+            pass
+        else:
+            duplicated_values = df.loc[df['InstanceNumber'].duplicated(),'InstanceNumber'].values
+            error_dict = {
+                "error_message": "InstanceNumber is duplicated for values:{}".format(duplicated_values),
+                "revalidate": False
+            }
+            error_list.append(error_dict)
+
+    # Determine if the number of expected DICOM files matches actual number of DICOM files
+    if 'ImagesInAcquisition' in df:
+        expected_images = df['ImagesInAcquisition'][0]
+    elif 'NumberOfSeriesRelatedInstances' in df:
+        expected_images = df['NumberOfSeriesRelatedInstances'][0]
+    elif 'NumberOfSlices' in df:
+        expected_images = df['NumberOfSlices']
+    else:
+        error_dict = {
+                "error_message": "Could not locate a DICOM header field for expected number of images.",
+                "revalidate": False
+        }
+        error_list.append(error_dict)
+    found_images = len(df)
+    if expected_images != found_images:
+        error_dict = {
+                "error_message": "Expected {} DICOM files, found {}".format(expected_images, found_images),
+                "revalidate": False
+        }
+        error_list.append(error_dict)
+    return error_list
 
 
 def dicom_to_json(zip_file_path, outbase, timezone):
@@ -508,9 +545,17 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     # Acquisition metadata from pydicom header
     pydicom_file['info']['header']['dicom'] = get_pydicom_header(dcm)
 
-    # Validate header data
+    # Validate header data against json schema template
     error_filepath = os.path.join(output_folder, 'error.log.json')
-    validation_errors = validate_against_template(pydicom_file['info']['header']['dicom'], json_template, error_filepath)
+    validation_errors = validate_against_template(pydicom_file['info']['header']['dicom'], json_template)
+    # Validate DICOM header df against file rules
+    rule_errors = validate_against_rules(df)
+    # Add error lists together
+    validation_errors = validation_errors + rule_errors
+    # Write error file
+    if validation_errors:
+        with open(error_filepath, 'w') as outfile:
+            json.dump(validation_errors, outfile, separators=(', ', ': '), sort_keys=True, indent=4)
     if validation_errors:
         metadata['acquisition']['tags'] = ['error']
 
