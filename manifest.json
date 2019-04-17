@@ -2,7 +2,7 @@
 	"name": "dicom-header-importer",
 	"label": "DICOM Header Importer",
 	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
-	"version": "1",
+	"version": "5",
 	"inputs": {
 		"dicom": {
 			"base": "file",
@@ -17,7 +17,7 @@
 		"json_template": {
 			"base": "file",
 			"description": "A JSON template to validate DICOM data",
-			"optional": false,
+			"optional": true,
 			"type": {
 				"enum": [
 					"source code"

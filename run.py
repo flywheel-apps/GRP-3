@@ -397,6 +397,9 @@ def validate_against_rules(df):
                 "revalidate": False
         }
         error_list.append(error_dict)
+        expected_images = None
+    if not expected_images:
+        return error_list
     found_images = len(df)
     if expected_images != found_images:
         error_dict = {
@@ -611,8 +614,10 @@ if __name__ == '__main__':
     dicom_name = config['inputs']['dicom']['location']['name']
 
     # Determine template json filepath
-    template_filepath = config['inputs']['json_template']['location']['path']
-
+    if config['inputs'].get('json_template'):
+        template_filepath = config['inputs']['json_template']['location']['path']
+    else:
+        template_filepath = None
     # Declare the output path
     output_filepath = os.path.join(output_folder, '.metadata.json')
 
@@ -652,10 +657,10 @@ if __name__ == '__main__':
     }
 
     # Import JSON template
-    with open(template_filepath) as template_data:
-        import_template = json.load(template_data)
-
-    template.update(import_template)
+    if template_filepath:
+        with open(template_filepath) as template_data:
+            import_template = json.load(template_data)
+        template.update(import_template)
     json_template = template.copy()
 
     metadatafile = dicom_to_json(dicom_filepath, output_filepath, timezone)
