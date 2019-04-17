@@ -12,3 +12,5 @@ output/.metadata.json
 notebooks/4784_1_1_loc.dcm.zip
 notebooks/4784_1_1_loc.csv
 output/.metadata.json
+output/A.zip.error.log.json
+output/error.log.json
