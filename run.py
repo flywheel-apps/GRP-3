@@ -162,9 +162,12 @@ def assign_type(s):
         return format_string(s)
     if type(s) == list or type(s) == pydicom.multival.MultiValue:
         try:
-            return [ float(x) for x in s if x.is_integer() == False ]
+            return [ float(x) for x in s ]
         except ValueError:
-            return [ format_string(x) for x in s if len(x) > 0 ]
+            try:
+                return [ int(x) for x in s ]
+            except ValueError:
+                return [ format_string(x) for x in s if len(x) > 0 ]
     elif type(s) == float or type(s) == int:
         return s
     else:
