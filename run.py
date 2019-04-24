@@ -348,7 +348,7 @@ def validate_against_template(input_dict, template):
     return validation_errors
 
 
-def classify_dicom(dcm, slice_number, unique_iop):
+def classify_dicom(dcm, slice_number, unique_iop=''):
     tr = dcm.get('RepetitionTime')
     te = dcm.get('EchoTime')
     ti = dcm.get('InversionTime')
@@ -357,12 +357,20 @@ def classify_dicom(dcm, slice_number, unique_iop):
     # Log empty parameters
     if not tr:
         log.warning('RepetitionTime unset')
+    else:
+        log.info('tr=%s' % str(tr))
     if not te:
         log.warning('EchoTime unset')
+    else:
+        log.info('te=%s' % str(te))
     if not ti:
         log.warning('InversionTime unset')
+    else:
+        log.info('ti=%s' % str(ti))
     if not sd:
         log.warning('SeriesDescription unset')
+    else:
+        log.info('sd=%s' % str(sd))
 
 
     classification_dict = {}
@@ -552,10 +560,10 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     if hasattr(df, 'ImageOrientationPatient'):
         uniqueiop = df.ImageOrientationPatient.is_unique
 
-    try:
-        pydicom_file['classification'] = classify_dicom(dcm, slice_number, uniqueiop='')
-    except:
-        log.warning('One or more parameters missing - cannot classify dicom!')
+    # Classification
+    classification = classify_dicom(dcm, slice_number, uniqueiop)
+    if classification:
+        pydicom_file['classification'] = classification
 
     # Acquisition metadata
     metadata['acquisition'] = {}

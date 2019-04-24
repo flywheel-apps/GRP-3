@@ -2,11 +2,11 @@
   "name": "metadata-import-dicom",
   "label": "Metadata Import and Validation: DICOM",
   "description": "Metadata Import and Validation for DICOM files. This Gear will parse, import, and validate DICOM header metadata. Those metadata are added to the input file's metadata object (<inputFile>.info). Optionally a metadata validation template can be provided as input to the gear. When that template is provided the gear will use that information to further validate the DICOM metadata.",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "custom": {
     "gear-builder": {
       "category": "converter",
-      "image": "flywheel/metadata-import-dicom:0.7.2"
+      "image": "flywheel/metadata-import-dicom:0.7.3"
     },
     "flywheel": {
       "suite": "Metadata Import and Validation"
