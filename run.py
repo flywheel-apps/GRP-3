@@ -353,6 +353,18 @@ def classify_dicom(dcm, slice_number, unique_iop):
     te = dcm.get('EchoTime')
     ti = dcm.get('InversionTime')
     sd = dcm.get('SeriesDescription')
+
+    # Log empty parameters
+    if not tr:
+        log.warning('RepetitionTime unset')
+    if not te:
+        log.warning('EchoTime unset')
+    if not ti:
+        log.warning('InversionTime unset')
+    if not sd:
+        log.warning('SeriesDescription unset')
+
+
     classification_dict = {}
     if (te and te < 30) and (tr and tr < 8000):
         classification_dict['Measurement'] = ["T1"]
