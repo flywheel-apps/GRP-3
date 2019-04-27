@@ -495,7 +495,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
                 tmp_dict[key] = [tmp_dict[key]]
         df_tmp = pd.DataFrame.from_dict(tmp_dict)
         df_list.append(df_tmp)
-    df = pd.concat(df_list, ignore_index=True)
+    df = pd.concat(df_list, ignore_index=True, sort=True)
 
     # Build metadata
     metadata = {}
@@ -559,6 +559,8 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     # Determine whether ImageOrientationPatient is constant
     if hasattr(df, 'ImageOrientationPatient'):
         uniqueiop = df.ImageOrientationPatient.is_unique
+    else:
+        uniqueiop = []
 
     # Classification
     classification = classify_dicom(dcm, slice_number, uniqueiop)
