@@ -20,7 +20,6 @@ from pprint import pprint
 logging.basicConfig()
 log = logging.getLogger('grp-3')
 
-
 def get_session_label(dcm):
     """
     Switch on manufacturer and either pull out the StudyID or the StudyInstanceUID
@@ -562,10 +561,11 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     else:
         uniqueiop = []
 
-    # Classification
-    classification = classify_dicom(dcm, slice_number, uniqueiop)
-    if classification:
-        pydicom_file['classification'] = classification
+    # Classification (# Only set classification if the modality is MR)
+    if pydicom_file['modality'] == 'MR':
+        classification = classify_dicom(dcm, slice_number, uniqueiop)
+        if classification:
+            pydicom_file['classification'] = classification
 
     # Acquisition metadata
     metadata['acquisition'] = {}
