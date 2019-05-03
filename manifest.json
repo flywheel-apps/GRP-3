@@ -32,6 +32,9 @@
           "source code"
         ]
       }
+    },
+    "classifications": {
+      "base": "context"
     }
   },
   "config": {},
