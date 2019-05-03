@@ -16,6 +16,8 @@ import nibabel
 import pandas as pd
 from fnmatch import fnmatch
 from pprint import pprint
+import classification_from_label
+
 
 logging.basicConfig()
 log = logging.getLogger('grp-3')
@@ -347,48 +349,118 @@ def validate_against_template(input_dict, template):
     return validation_errors
 
 
+def get_custom_classification(label, config_file):
+    if config_file is None or not os.path.isfile(config_file):
+        return None
+
+    try:
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+
+        # Check custom classifiers
+        classifications = config['inputs'].get('classifications', {}).get('value', {})
+        if not classifications:
+            log.debug('No custom classifications found in config...')
+            return None
+
+        if not isinstance(classifications, dict):
+            log.warning('classifications must be an object!')
+            return None
+
+        for k in classifications.keys():
+            val = classifications[k]
+
+            if not isinstance(val, basestring):
+                log.warn('Expected string value for classification key %s', k)
+                continue
+
+            if len(k) > 2 and k[0] == '/' and k[-1] == '/':
+                # Regex
+                try:
+                    if re.search(k[1:-1], label, re.I):
+                        log.debug('Matched custom classification for key: %s', k)
+                        return get_classification_from_string(val)
+                except re.error:
+                    log.exception('Invalid regular expression: %s', k)
+            elif fnmatch(label.lower(), k.lower()):
+                log.debug('Matched custom classification for key: %s', k)
+                return get_classification_from_string(val)
+
+    except IOError:
+        log.exception('Unable to load config file: %s', config_file)
+
+    return None
+
+
 def classify_dicom(dcm, slice_number, unique_iop=''):
-    tr = dcm.get('RepetitionTime')
-    te = dcm.get('EchoTime')
-    ti = dcm.get('InversionTime')
-    sd = dcm.get('SeriesDescription')
-
-    # Log empty parameters
-    if not tr:
-        log.warning('RepetitionTime unset')
-    else:
-        log.info('tr=%s' % str(tr))
-    if not te:
-        log.warning('EchoTime unset')
-    else:
-        log.info('te=%s' % str(te))
-    if not ti:
-        log.warning('InversionTime unset')
-    else:
-        log.info('ti=%s' % str(ti))
-    if not sd:
-        log.warning('SeriesDescription unset')
-    else:
-        log.info('sd=%s' % str(sd))
-
 
     classification_dict = {}
-    if (te and te < 30) and (tr and tr < 8000):
-        classification_dict['Measurement'] = ["T1"]
-    elif (te and te  > 50) and (tr and tr > 2000) and (ti and ti == 0):
-        classification_dict['Measurement'] = ["T2"]
-    elif (te and te  > 50) and (tr and tr > 8000) and (ti and (3000 > ti > 1500)):
-        classification_dict['Measurement'] = ["FLAIR"]
-    elif (te and te  < 50) and (tr and tr > 1000):
-        classification_dict['Measurement'] = ["PD"]
-    if re.search('POST', sd, flags=re.IGNORECASE):
-        classification_dict['Custom'] = ['Contrast']
-    if slice_number and slice_number < 10:
-        classification_dict['Intent'] = ['Localizer']
-    if unique_iop:
-        classification_dict['Intent'] = ['3-Plane Localizer']
+
+    series_desc = format_string(dcm.get('SeriesDescription', ''))
+    if series_desc:
+        classification_dict = get_custom_classification(series_desc, '/flywheel/v0/config.json')
+        if classification_dict:
+            log.info('Custom classification from config: %s', classification_dict)
+        else:
+            classification_dict = classification_from_label.infer_classification(series_desc)
+            if classification_dict:
+                log.info('Inferred classification from label: %s', classification_dict)
+
     if not classification_dict:
-        log.warning('Could not determine classification based on parameters!')
+        log.info('Attemptint to deduce classification from imaging prameters...')
+        tr = dcm.get('RepetitionTime')
+        te = dcm.get('EchoTime')
+        ti = dcm.get('InversionTime')
+        sd = dcm.get('SeriesDescription')
+
+        # Log empty parameters
+        if not tr:
+            log.warning('RepetitionTime unset')
+        else:
+            log.info('tr=%s' % str(tr))
+        if not te:
+            log.warning('EchoTime unset')
+        else:
+            log.info('te=%s' % str(te))
+        if not ti:
+            log.warning('InversionTime unset')
+        else:
+            log.info('ti=%s' % str(ti))
+        if not sd:
+            log.warning('SeriesDescription unset')
+        else:
+            log.info('sd=%s' % str(sd))
+
+        if (te and te < 30) and (tr and tr < 8000):
+            classification_dict['Measurement'] = ["T1"]
+            log.info('(te and te < 30) and (tr and tr < 8000) -- T1 Measurement')
+        elif (te and te  > 50) and (tr and tr > 2000) and (ti and ti == 0):
+            classification_dict['Measurement'] = ["T2"]
+            log.info('(te and te  > 50) and (tr and tr > 2000) and (ti and ti == 0) -- T2 Measurement')
+        elif (te and te  > 50) and (tr and tr > 8000) and (ti and (3000 > ti > 1500)):
+            classification_dict['Measurement'] = ["FLAIR"]
+            log.info('(te and te  > 50) and (tr and tr > 8000) and (ti and (3000 > ti > 1500)) -- FLAIR Measurement')
+        elif (te and te  < 50) and (tr and tr > 1000):
+            classification_dict['Measurement'] = ["PD"]
+            log.info('(te and te  < 50) and (tr and tr > 1000) -- PD Measurement')
+
+        if re.search('POST', sd, flags=re.IGNORECASE):
+            classification_dict['Custom'] = ['Contrast']
+            log.info('POST found in Series Description -- Adding Contrast to custom classification')
+
+        if slice_number and slice_number < 10:
+            classification_dict['Intent'] = ['Localizer']
+            log.info('slice_number and slice_number < 10 -- Localizer Intent')
+
+        if unique_iop:
+            classification_dict['Intent'] = ['Localizer']
+            log.info('unique_iop found -- Localizer')
+
+        if not classification_dict:
+            log.warning('Could not determine classification based on parameters!')
+        else:
+            log.info('Inferred classification from parameters: %s', classification_dict)
+
     return classification_dict
 
 
@@ -563,6 +635,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
 
     # Classification (# Only set classification if the modality is MR)
     if pydicom_file['modality'] == 'MR':
+        log.info('MR series detected. Attempting classification...')
         classification = classify_dicom(dcm, slice_number, uniqueiop)
         if classification:
             pydicom_file['classification'] = classification
