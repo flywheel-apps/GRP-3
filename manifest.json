@@ -1,50 +1,46 @@
 {
-	"name": "dicom-header-importer",
-	"label": "DICOM Header Importer",
-	"description": "Created by the gear builder. Edit the manifest file to give this gear a description!",
-	"version": "5",
-	"inputs": {
-		"dicom": {
-			"base": "file",
-			"description": "Any dicom file.",
-			"optional": false,
-			"type": {
-				"enum": [
-					"dicom"
-				]
-			}
-		},
-		"json_template": {
-			"base": "file",
-			"description": "A JSON template to validate DICOM data",
-			"optional": true,
-			"type": {
-				"enum": [
-					"source code"
-				]
-			}
-		}
-	},
-	"config": {},
-	"environment": {
-		"GPG_KEY": "0D96DF4D4110E5C43FBFB17F2D347EA6AA65421D",
-		"LANG": "C.UTF-8",
-		"PATH": "/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-		"PYTHON_PIP_VERSION": "19.0.3",
-		"PYTHON_VERSION": "3.7.2"
-	},
-	"command": "./run.py",
-	"author": "Kaleb Fischer",
-	"maintainer": "Kaleb Fischer",
-	"cite": "List citations here.",
-	"license": "Other",
-	"source": "",
-	"url": "",
-	"custom": {
-		"gear-builder": {
-			"category": "converter",
-			"container": "84c192cb55d926d0b16cdf397a430cb16bf88bd559df5a5ac246be040b3fa134",
-			"image": "gear-builder-ddxetulwre-20190415144034"
-		}
-	}
+  "name": "metadata-import-dicom",
+  "label": "Metadata Import and Validation: DICOM",
+  "description": "Metadata Import and Validation for DICOM files. This Gear will parse, import, and validate DICOM header metadata. Those metadata are added to the input file's metadata object (<inputFile>.info). A metadata validation template must be provided as input to the gear, which the gear will use to validate the DICOM metadata. Data which fail this validation will be tagged (with 'error') and an error file will be generated and written to the input container.",
+  "version": "0.9.0",
+  "custom": {
+    "gear-builder": {
+      "category": "converter",
+      "image": "flywheel/metadata-import-dicom:0.9.0"
+    },
+    "flywheel": {
+      "suite": "Metadata Import and Validation"
+    }
+  },
+  "inputs": {
+    "dicom": {
+      "base": "file",
+      "description": "Dicom Archive",
+      "optional": false,
+      "type": {
+        "enum": [
+          "dicom"
+        ]
+      }
+    },
+    "json_template": {
+      "base": "file",
+      "description": "A JSON template to validate DICOM data",
+      "optional": false,
+      "type": {
+        "enum": [
+          "source code"
+        ]
+      }
+    }
+  },
+  "config": {},
+  "environment": {},
+  "command": "./run.py",
+  "author": "Flywheel",
+  "maintainer": "Flywheel <support@flywheel.io>",
+  "cite": "",
+  "license": "Other",
+  "source": "https://github.com/flywheel-apps/GRP-3",
+  "url": ""
 }

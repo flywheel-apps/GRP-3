@@ -16,10 +16,11 @@ import nibabel
 import pandas as pd
 from fnmatch import fnmatch
 from pprint import pprint
+import classification_from_label
+
 
 logging.basicConfig()
 log = logging.getLogger('grp-3')
-
 
 def get_session_label(dcm):
     """
@@ -82,7 +83,6 @@ def timestamp(date, time, timezone):
     Return datetime formatted string
     """
     if date and time and timezone:
-        # return datetime.datetime.strptime(date + time[:6], '%Y%m%d%H%M%S')
         try:
             return timezone.localize(datetime.datetime.strptime(date + time[:6], '%Y%m%d%H%M%S'), timezone)
         except:
@@ -163,12 +163,14 @@ def assign_type(s):
         return format_string(s)
     if type(s) == list or type(s) == pydicom.multival.MultiValue:
         try:
-            return [ int(x) for x in s ]
+            return [ float(x) for x in s ]
         except ValueError:
             try:
-                return [ float(x) for x in s ]
+                return [ int(x) for x in s ]
             except ValueError:
                 return [ format_string(x) for x in s if len(x) > 0 ]
+    elif type(s) == float or type(s) == int:
+        return s
     else:
         s = str(s)
         try:
@@ -347,26 +349,142 @@ def validate_against_template(input_dict, template):
     return validation_errors
 
 
-def classify_dicom(dcm, slice_number, unique_iop):
+def get_custom_classification(label, config_file):
+    if config_file is None or not os.path.isfile(config_file):
+        return None
+
+    try:
+        with open(config_file, 'r') as f:
+            config = json.load(f)
+
+        # Check custom classifiers
+        classifications = config['inputs'].get('classifications', {}).get('value', {})
+        if not classifications:
+            log.debug('No custom classifications found in config...')
+            return None
+
+        if not isinstance(classifications, dict):
+            log.warning('classifications must be an object!')
+            return None
+
+        for k in classifications.keys():
+            val = classifications[k]
+
+            if not isinstance(val, basestring):
+                log.warn('Expected string value for classification key %s', k)
+                continue
+
+            if len(k) > 2 and k[0] == '/' and k[-1] == '/':
+                # Regex
+                try:
+                    if re.search(k[1:-1], label, re.I):
+                        log.debug('Matched custom classification for key: %s', k)
+                        return get_classification_from_string(val)
+                except re.error:
+                    log.exception('Invalid regular expression: %s', k)
+            elif fnmatch(label.lower(), k.lower()):
+                log.debug('Matched custom classification for key: %s', k)
+                return get_classification_from_string(val)
+
+    except IOError:
+        log.exception('Unable to load config file: %s', config_file)
+
+    return None
+
+def get_param_classification(dcm, slice_number, unique_iop):
+    """
+    Get classification based on imaging parameters in DICOM header.
+    """
+    classification_dict = {}
+
+    log.info('Attempting to deduce classification from imaging prameters...')
     tr = dcm.get('RepetitionTime')
     te = dcm.get('EchoTime')
     ti = dcm.get('InversionTime')
     sd = dcm.get('SeriesDescription')
-    classification_dict = {}
-    if te < 30 and tr < 800:
+
+    # Log empty parameters
+    if not tr:
+        log.warning('RepetitionTime unset')
+    else:
+        log.info('tr=%s' % str(tr))
+    if not te:
+        log.warning('EchoTime unset')
+    else:
+        log.info('te=%s' % str(te))
+    if not ti:
+        log.warning('InversionTime unset')
+    else:
+        log.info('ti=%s' % str(ti))
+    if not sd:
+        log.warning('SeriesDescription unset')
+    else:
+        log.info('sd=%s' % str(sd))
+
+    if (te and te < 30) and (tr and tr < 8000):
         classification_dict['Measurement'] = ["T1"]
-    elif te > 50 and tr > 2000 and ti == 0:
+        log.info('(te and te < 30) and (tr and tr < 8000) -- T1 Measurement')
+    elif (te and te  > 50) and (tr and tr > 2000) and (ti and ti == 0):
         classification_dict['Measurement'] = ["T2"]
-    elif te > 50 and tr > 8000 and (3000 > ti > 1500):
+        log.info('(te and te  > 50) and (tr and tr > 2000) and (ti and ti == 0) -- T2 Measurement')
+    elif (te and te  > 50) and (tr and tr > 8000) and (ti and (3000 > ti > 1500)):
         classification_dict['Measurement'] = ["FLAIR"]
-    elif te < 50 and tr > 1000:
+        log.info('(te and te  > 50) and (tr and tr > 8000) and (ti and (3000 > ti > 1500)) -- FLAIR Measurement')
+    elif (te and te  < 50) and (tr and tr > 1000):
         classification_dict['Measurement'] = ["PD"]
+        log.info('(te and te  < 50) and (tr and tr > 1000) -- PD Measurement')
+
     if re.search('POST', sd, flags=re.IGNORECASE):
         classification_dict['Custom'] = ['Contrast']
-    if slice_number < 10:
+        log.info('POST found in Series Description -- Adding Contrast to custom classification')
+
+    if slice_number and slice_number < 10:
         classification_dict['Intent'] = ['Localizer']
+        log.info('slice_number and slice_number < 10 -- Localizer Intent')
+
     if unique_iop:
-        classification_dict['Intent'] = ['3-Plane Localizer']
+        classification_dict['Intent'] = ['Localizer']
+        log.info('unique_iop found -- Localizer')
+
+    if not classification_dict:
+        log.warning('Could not determine classification based on parameters!')
+    else:
+        log.info('Inferred classification from parameters: %s', classification_dict)
+
+    return classification_dict
+
+
+def classify_dicom(dcm, slice_number, unique_iop=''):
+    """
+    Generate a classification dict from DICOM header info.
+
+    Classification logic is as follows:
+     1. Check for custom (context) classification.
+     2. Check for classification based on the acquisition label.
+     3. Attempt to generate a classification based on the imaging params.
+
+    When a classification is returned the logic cascade ends.
+    """
+
+    classification_dict = {}
+    series_desc = format_string(dcm.get('SeriesDescription', ''))
+
+    # 1. Custom classification from context
+    if series_desc:
+        classification_dict = get_custom_classification(series_desc, '/flywheel/v0/config.json')
+        if classification_dict:
+            log.info('Custom classification from config: %s', classification_dict)
+
+    # 2. Classification from SeriesDescription
+    if not classification_dict and series_desc:
+        classification_dict = classification_from_label.infer_classification(series_desc)
+        if classification_dict:
+            log.info('Inferred classification from label: %s', classification_dict)
+
+    # 3. Classification from Imaging params
+    if not classification_dict:
+        classification_dict = get_param_classification(dcm, slice_number, unique_iop)
+
     return classification_dict
 
 
@@ -392,11 +510,12 @@ def validate_against_rules(df):
     elif 'NumberOfSlices' in df:
         expected_images = df['NumberOfSlices']
     else:
-        error_dict = {
-                "error_message": "Could not locate a DICOM header field for expected number of images.",
-                "revalidate": False
-        }
-        error_list.append(error_dict)
+        log.warning('Cannot locate a DICOM header field for expected number of images!')
+        # error_dict = {
+        #         "error_message": "Could not locate a DICOM header field for expected number of images.",
+        #         "revalidate": False
+        # }
+        # error_list.append(error_dict)
         expected_images = None
     if not expected_images:
         return error_list
@@ -423,20 +542,8 @@ def dicom_date_handler(dcm):
 
 
 def dicom_to_json(zip_file_path, outbase, timezone):
-    # Check for input file path
-    if not os.path.exists(zip_file_path):
-        log.debug('could not find %s' % zip_file_path)
-        log.debug('checking input directory ...')
-        if os.path.exists(os.path.join('/input', zip_file_path)):
-            zip_file_path = os.path.join('/input', zip_file_path)
-            log.debug('found %s' % zip_file_path)
-
-    if not outbase:
-        outbase = '/flywheel/v0/output'
-        log.info('setting outbase to %s' % outbase)
 
     # Extract the last file in the zip to /tmp/ and read it
-
     if zipfile.is_zipfile(zip_file_path):
         dcm_list = []
         zip = zipfile.ZipFile(zip_file_path)
@@ -483,7 +590,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
                 tmp_dict[key] = [tmp_dict[key]]
         df_tmp = pd.DataFrame.from_dict(tmp_dict)
         df_list.append(df_tmp)
-    df = pd.concat(df_list, ignore_index=True)
+    df = pd.concat(df_list, ignore_index=True, sort=True)
 
     # Build metadata
     metadata = {}
@@ -537,16 +644,25 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     pydicom_file['name'] = os.path.basename(zip_file_path)
     pydicom_file['modality'] = format_string(dcm.get('Modality', 'MR'))
     pydicom_file['info'] = {
-        "header": {
-            "dicom": {}
-        }
-    }
+                                "header": {
+                                    "dicom": {}
+                                }
+                            }
     # Determine how many DICOM files are in directory
     slice_number = len(df)
-    # Determine whether ImageOrientationPatient is constant
-    uniqueiop = df.ImageOrientationPatient.is_unique
 
-    pydicom_file['classification'] = classify_dicom(dcm, slice_number, uniqueiop)
+    # Determine whether ImageOrientationPatient is constant
+    if hasattr(df, 'ImageOrientationPatient'):
+        uniqueiop = df.ImageOrientationPatient.is_unique
+    else:
+        uniqueiop = []
+
+    # Classification (# Only set classification if the modality is MR)
+    if pydicom_file['modality'] == 'MR':
+        log.info('MR series detected. Attempting classification...')
+        classification = classify_dicom(dcm, slice_number, uniqueiop)
+        if classification:
+            pydicom_file['classification'] = classification
 
     # Acquisition metadata
     metadata['acquisition'] = {}
@@ -560,17 +676,26 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     if acquisition_timestamp:
         metadata['acquisition']['timestamp'] = acquisition_timestamp
 
-    # Acquisition metadata from pydicom header
+    # File metadata from pydicom header
     pydicom_file['info']['header']['dicom'] = get_pydicom_header(dcm)
+
+    # Add CSAHeader to DICOM
+    if dcm.get('Manufacturer') == 'SIEMENS':
+        csa_header = get_csa_header(dcm)
+        if csa_header:
+            pydicom_file['info']['header']['dicom']['CSAHeader'] = csa_header
 
     # Validate header data against json schema template
     error_file_name = dicom_name + '.error.log.json'
     error_filepath = os.path.join(output_folder, error_file_name)
     validation_errors = validate_against_template(pydicom_file['info']['header']['dicom'], json_template)
+
     # Validate DICOM header df against file rules
     rule_errors = validate_against_rules(df)
+
     # Add error lists together
     validation_errors = validation_errors + rule_errors
+
     # Write error file
     if validation_errors:
         with open(error_filepath, 'w') as outfile:
@@ -580,13 +705,6 @@ def dicom_to_json(zip_file_path, outbase, timezone):
 
     # Append the pydicom_file to the files array
     metadata['acquisition']['files'] = [pydicom_file]
-
-    # Acquisition metadata from pydicom header
-    metadata['acquisition']['metadata'] = get_pydicom_header(dcm)
-    if dcm.get('Manufacturer') == 'SIEMENS':
-        csa_header = get_csa_header(dcm)
-        if csa_header:
-            metadata['acquisition']['metadata']['CSAHeader'] = csa_header
 
     # Write out the metadata to file (.metadata.json)
     metafile_outname = os.path.join(os.path.dirname(outbase), '.metadata.json')
@@ -600,28 +718,25 @@ def dicom_to_json(zip_file_path, outbase, timezone):
 
 
 if __name__ == '__main__':
-    # Gear basics
+    # Set paths
     input_folder = '/flywheel/v0/input/file/'
     output_folder = '/flywheel/v0/output/'
-
-    # Declare config file path
     config_file_path = '/flywheel/v0/config.json'
+    output_filepath = os.path.join(output_folder, '.metadata.json')
 
     # Load config file
     with open(config_file_path) as config_data:
         config = json.load(config_data)
 
-    # Determine dicom zip path and name
+    # Set dicom path and name from config file
     dicom_filepath = config['inputs']['dicom']['location']['path']
     dicom_name = config['inputs']['dicom']['location']['name']
 
-    # Determine template json filepath
+    # Set template json filepath (if provided)
     if config['inputs'].get('json_template'):
         template_filepath = config['inputs']['json_template']['location']['path']
     else:
         template_filepath = None
-    # Declare the output path
-    output_filepath = os.path.join(output_folder, '.metadata.json')
 
     # Determine the level from which the gear was invoked
     hierarchy_level = config['inputs']['dicom']['hierarchy']['type']
@@ -630,33 +745,7 @@ if __name__ == '__main__':
     timezone = validate_timezone(tzlocal.get_localzone())
 
     # Set default validation template
-    template = {
-      "properties": {
-        "ImageType": {
-                "description": "ImageType cannot be 'SCREEN SAVE'",
-                "type": "array",
-                "items": {
-                  "not": {"enum":["SCREEN SAVE"]}
-                }
-            },
-        "Modality": {
-                "description": "Modality must match 'MR'",
-                "pattern": "MR",
-                "type": "string"
-            },
-        "PatientID": {
-                "description": "PatientID must be 5 numeric characters",
-                "pattern": "^[0-9]{5}$",
-                "type": "string"
-            }
-      },
-      "type": "object",
-      "anyOf": [
-        {"required": ["AcquisitionDate"]},
-        {"required": ["SeriesDate"]},
-        {"required": ["StudyDate"]}
-      ]
-    }
+    template = {}
 
     # Import JSON template (if provided)
     if template_filepath:
@@ -666,3 +755,5 @@ if __name__ == '__main__':
     json_template = template.copy()
 
     metadatafile = dicom_to_json(dicom_filepath, output_filepath, timezone)
+    if os.path.isfile(metadatafile):
+        os.sys.exit(0)
