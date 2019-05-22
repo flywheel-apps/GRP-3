@@ -657,12 +657,6 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     else:
         uniqueiop = []
 
-    # Classification (# Only set classification if the modality is MR)
-    if pydicom_file['modality'] == 'MR':
-        log.info('MR series detected. Attempting classification...')
-        classification = classify_dicom(dcm, slice_number, uniqueiop)
-        if classification:
-            pydicom_file['classification'] = classification
 
     # Acquisition metadata
     metadata['acquisition'] = {}
