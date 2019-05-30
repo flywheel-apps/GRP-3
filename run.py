@@ -122,7 +122,7 @@ def get_timestamp(dcm, timezone):
         acquitision_date = None
         acquisition_time = None
 
-    session_timestamp = timestamp(dcm.StudyDate, dcm.StudyTime, timezone)
+    session_timestamp = timestamp(study_date, study_time, timezone)
     acquisition_timestamp = timestamp(acquitision_date, acquisition_time, timezone)
 
     if session_timestamp:
@@ -508,7 +508,7 @@ def validate_against_rules(df):
     elif 'NumberOfSeriesRelatedInstances' in df:
         expected_images = df['NumberOfSeriesRelatedInstances'][0]
     elif 'NumberOfSlices' in df:
-        expected_images = df['NumberOfSlices']
+        expected_images = df['NumberOfSlices'][0]
     else:
         log.warning('Cannot locate a DICOM header field for expected number of images!')
         # error_dict = {
@@ -571,7 +571,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     else:
         log.info('Not a zip. Attempting to read %s directly' % os.path.basename(zip_file_path))
         dcm = pydicom.read_file(zip_file_path)
-
+        dcm_list = [dcm]
     if not dcm:
         log.warning('dcm is empty!!!')
         os.sys.exit(1)
