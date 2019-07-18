@@ -501,31 +501,6 @@ def validate_against_rules(df):
                 "revalidate": False
             }
             error_list.append(error_dict)
-
-    # Determine if the number of expected DICOM files matches actual number of DICOM files
-    if 'ImagesInAcquisition' in df:
-        expected_images = df['ImagesInAcquisition'][0]
-    elif 'NumberOfSeriesRelatedInstances' in df:
-        expected_images = df['NumberOfSeriesRelatedInstances'][0]
-    elif 'NumberOfSlices' in df:
-        expected_images = df['NumberOfSlices'][0]
-    else:
-        log.warning('Cannot locate a DICOM header field for expected number of images!')
-        # error_dict = {
-        #         "error_message": "Could not locate a DICOM header field for expected number of images.",
-        #         "revalidate": False
-        # }
-        # error_list.append(error_dict)
-        expected_images = None
-    if not expected_images:
-        return error_list
-    found_images = len(df)
-    if expected_images != found_images:
-        error_dict = {
-                "error_message": "Expected {} DICOM files, found {}".format(expected_images, found_images),
-                "revalidate": False
-        }
-        error_list.append(error_dict)
     return error_list
 
 
