@@ -16,8 +16,6 @@ import nibabel
 import pandas as pd
 from fnmatch import fnmatch
 from pprint import pprint
-import classification_from_label
-
 
 logging.basicConfig()
 log = logging.getLogger('grp-3')
@@ -271,33 +269,6 @@ def get_csa_header(dcm):
     return header
 
 
-def get_classification_from_string(value):
-    result = {}
-
-    parts = re.split(r'\s*,\s*', value)
-    last_key = None
-    for part in parts:
-        key_value = re.split(r'\s*:\s*', part)
-
-        if len(key_value) == 2:
-            last_key = key = key_value[0]
-            value = key_value[1]
-        else:
-            if last_key:
-                key = last_key
-            else:
-                log.warning('Unknown classification format: {0}'.format(part))
-                key = 'Custom'
-            value = part
-
-        if key not in result:
-            result[key] = []
-
-        result[key].append(value)
-
-    return result
-
-
 def validate_against_template(input_dict, template):
     """
     This is a function for validating a dictionary against a template. Given
@@ -347,145 +318,6 @@ def validate_against_template(input_dict, template):
         validation_errors.append(tmp_dict)
 
     return validation_errors
-
-
-def get_custom_classification(label, config_file):
-    if config_file is None or not os.path.isfile(config_file):
-        return None
-
-    try:
-        with open(config_file, 'r') as f:
-            config = json.load(f)
-
-        # Check custom classifiers
-        classifications = config['inputs'].get('classifications', {}).get('value', {})
-        if not classifications:
-            log.debug('No custom classifications found in config...')
-            return None
-
-        if not isinstance(classifications, dict):
-            log.warning('classifications must be an object!')
-            return None
-
-        for k in classifications.keys():
-            val = classifications[k]
-
-            if not isinstance(val, basestring):
-                log.warn('Expected string value for classification key %s', k)
-                continue
-
-            if len(k) > 2 and k[0] == '/' and k[-1] == '/':
-                # Regex
-                try:
-                    if re.search(k[1:-1], label, re.I):
-                        log.debug('Matched custom classification for key: %s', k)
-                        return get_classification_from_string(val)
-                except re.error:
-                    log.exception('Invalid regular expression: %s', k)
-            elif fnmatch(label.lower(), k.lower()):
-                log.debug('Matched custom classification for key: %s', k)
-                return get_classification_from_string(val)
-
-    except IOError:
-        log.exception('Unable to load config file: %s', config_file)
-
-    return None
-
-def get_param_classification(dcm, slice_number, unique_iop):
-    """
-    Get classification based on imaging parameters in DICOM header.
-    """
-    classification_dict = {}
-
-    log.info('Attempting to deduce classification from imaging prameters...')
-    tr = dcm.get('RepetitionTime')
-    te = dcm.get('EchoTime')
-    ti = dcm.get('InversionTime')
-    sd = dcm.get('SeriesDescription')
-
-    # Log empty parameters
-    if not tr:
-        log.warning('RepetitionTime unset')
-    else:
-        log.info('tr=%s' % str(tr))
-    if not te:
-        log.warning('EchoTime unset')
-    else:
-        log.info('te=%s' % str(te))
-    if not ti:
-        log.warning('InversionTime unset')
-    else:
-        log.info('ti=%s' % str(ti))
-    if not sd:
-        log.warning('SeriesDescription unset')
-    else:
-        log.info('sd=%s' % str(sd))
-
-    if (te and te < 30) and (tr and tr < 8000):
-        classification_dict['Measurement'] = ["T1"]
-        log.info('(te and te < 30) and (tr and tr < 8000) -- T1 Measurement')
-    elif (te and te  > 50) and (tr and tr > 2000) and (ti and ti == 0):
-        classification_dict['Measurement'] = ["T2"]
-        log.info('(te and te  > 50) and (tr and tr > 2000) and (ti and ti == 0) -- T2 Measurement')
-    elif (te and te  > 50) and (tr and tr > 8000) and (ti and (3000 > ti > 1500)):
-        classification_dict['Measurement'] = ["FLAIR"]
-        log.info('(te and te  > 50) and (tr and tr > 8000) and (ti and (3000 > ti > 1500)) -- FLAIR Measurement')
-    elif (te and te  < 50) and (tr and tr > 1000):
-        classification_dict['Measurement'] = ["PD"]
-        log.info('(te and te  < 50) and (tr and tr > 1000) -- PD Measurement')
-
-    if re.search('POST', sd, flags=re.IGNORECASE):
-        classification_dict['Custom'] = ['Contrast']
-        log.info('POST found in Series Description -- Adding Contrast to custom classification')
-
-    if slice_number and slice_number < 10:
-        classification_dict['Intent'] = ['Localizer']
-        log.info('slice_number and slice_number < 10 -- Localizer Intent')
-
-    if unique_iop:
-        classification_dict['Intent'] = ['Localizer']
-        log.info('unique_iop found -- Localizer')
-
-    if not classification_dict:
-        log.warning('Could not determine classification based on parameters!')
-    else:
-        log.info('Inferred classification from parameters: %s', classification_dict)
-
-    return classification_dict
-
-
-def classify_dicom(dcm, slice_number, unique_iop=''):
-    """
-    Generate a classification dict from DICOM header info.
-
-    Classification logic is as follows:
-     1. Check for custom (context) classification.
-     2. Check for classification based on the acquisition label.
-     3. Attempt to generate a classification based on the imaging params.
-
-    When a classification is returned the logic cascade ends.
-    """
-
-    classification_dict = {}
-    series_desc = format_string(dcm.get('SeriesDescription', ''))
-
-    # 1. Custom classification from context
-    if series_desc:
-        classification_dict = get_custom_classification(series_desc, '/flywheel/v0/config.json')
-        if classification_dict:
-            log.info('Custom classification from config: %s', classification_dict)
-
-    # 2. Classification from SeriesDescription
-    if not classification_dict and series_desc:
-        classification_dict = classification_from_label.infer_classification(series_desc)
-        if classification_dict:
-            log.info('Inferred classification from label: %s', classification_dict)
-
-    # 3. Classification from Imaging params
-    if not classification_dict:
-        classification_dict = get_param_classification(dcm, slice_number, unique_iop)
-
-    return classification_dict
 
 
 def validate_against_rules(df):
@@ -616,7 +448,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
                 metadata['session']['subject']['lastname'] = str(last)
                 metadata['session']['subject']['firstname'] = str(first)
 
-    # File classification
+    # File metadata
     pydicom_file = {}
     pydicom_file['name'] = os.path.basename(zip_file_path)
     pydicom_file['modality'] = format_string(dcm.get('Modality', 'MR'))
