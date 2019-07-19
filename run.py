@@ -193,7 +193,7 @@ def get_seq_data(sequence, ignore_keys):
     for seq in sequence:
         for s_key in seq.dir():
             s_val = getattr(seq, s_key, '')
-            if type(s_val) is pydicom.UID.UID or s_key in ignore_keys:
+            if type(s_val) is pydicom.uid.UID or s_key in ignore_keys:
                 continue
 
             if type(s_val) == pydicom.sequence.Sequence:
@@ -208,7 +208,6 @@ def get_seq_data(sequence, ignore_keys):
 
             if s_val:
                 seq_dict[s_key] = s_val
-
     return seq_dict
 
 
