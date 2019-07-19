@@ -17,8 +17,6 @@ COPY tests ./tests
 RUN pip install -r tests/requirements.txt
 
 # Copy executables into place
-COPY classification_from_label.py .
-RUN chmod +x classification_from_label.py
 COPY run.py ./run.py
 RUN chmod +x ./run.py
 COPY manifest.json .
