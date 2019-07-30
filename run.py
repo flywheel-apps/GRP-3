@@ -412,7 +412,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     if session_label:
         metadata['session']['label'] = session_label
     if hasattr(dcm, 'PatientWeight') and dcm.get('PatientWeight'):
-        metadata['session']['weight'] = dcm.get('PatientWeight')
+        metadata['session']['weight'] = assign_type(dcm.get('PatientWeight'))
 
     # Subject Metadata
     metadata['session']['subject'] = {}
