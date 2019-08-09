@@ -22,9 +22,8 @@ The user uploads some DICOM data. I envision this gear running as a rule when a 
 1. Read in the DCIOM header data - convert to json
 2. Read in the template from project context or _trial.template.json_ attached to the project
 3. Validate DICOM header metadata against the template (support regex)
-4. For DICOM files in acquisition, verify slice intervals are consistent (implying there are no slices missing)
-5. Generate error if fields are missing or invalid
-6. If validation errors are found:
+4. Generate error if fields are missing or invalid
+5. If validation errors are found:
 *  tag the container
 *  log the error 
 * optionally write out error file - see below.
