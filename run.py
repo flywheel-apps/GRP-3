@@ -17,8 +17,10 @@ import pandas as pd
 from fnmatch import fnmatch
 from pprint import pprint
 
+
 logging.basicConfig()
 log = logging.getLogger('grp-3')
+
 
 def get_session_label(dcm):
     """
@@ -319,8 +321,138 @@ def validate_against_template(input_dict, template):
     return validation_errors
 
 
+def check_missing_slices(df, this_sequence):
+    # holds any error messages related to missing slices
+    slice_error_list = []
+
+    # sequence_message is added to slice error message if we are dealing with multiple sequences
+    sequence_message = ""
+    if this_sequence != None and this_sequence != '':
+        sequence_message = '(SequenceName is {}, in case there are multiple.)'.format(this_sequence)
+    
+    # Holds all locations of slices
+    locations = []
+
+    ## First we check if acquisition is long enough to warrant slice interval checking (i.e. not localizers)
+    threshold = 10
+    if len(df) < threshold:
+        log.warning("Small number of images in sequence; slice interval checking will not be performed. {}".format(sequence_message))
+        return slice_error_list
+
+    ## Attempt to find locations via SliceLocation header
+    if('SliceLocation' in df) and True:
+        # This line iterates through all SliceLocations in rows where ImageType != LOCALIZER
+        for location in (df.loc[df['ImageType'] != 'LOCALIZER'])['SliceLocation']:
+            locations.append(location)
+
+    ## Attempt to find locations by ImageOrientationPatient and ImagePositionPatient headers
+    elif('ImageOrientationPatient' in df) and ('ImagePositionPatient' in df):
+        # DICOM headers annoyingly hold arrays as strings with puncuation
+        # This function is needed to turn that string into a real data structure
+        def string_to_array(str, expected_length):
+            str = str.replace('[','')
+            str = str.replace(']','')
+            str = str.replace(',','')
+            str = str.replace('(','')
+            str = str.replace(')','')
+            arr = str.split()
+            return_arr = [float(x) for x in arr]
+            # If new array is not expected length, something's gone wrong
+            if(len(return_arr) == expected_length):
+                return return_arr
+            else:
+                return False
+
+        # Find normal vector of patient's orientation
+        # This line below finds the first ImageOrientationPatient such that ImageType != LOCALIZER
+        str = (df.loc[df['ImageType'] != 'LOCALIZER'])['ImageOrientationPatient'][0]
+        arr = string_to_array(str, expected_length=6)
+        v1 = v2 = normal = []
+        if(arr):
+            v1 = [arr[0], arr[1], arr[2]]
+            v2 = [arr[3], arr[4], arr[5]]
+            normal = np.cross(v2, v1)
+
+            # Slice locations are the position vectors times the normal vector from above
+            # This line iterates through all ImagePositionPatients in rows where ImageType != LOCALIZER
+            for pos in (df.loc[df['ImageType'] != 'LOCALIZER'])['ImagePositionPatient']:
+                position = string_to_array(pos, expected_length=3)
+                if(position):
+                    location = np.dot(normal, position)
+                    locations.append(location)
+                else:
+                    locations = []
+                    log.warning("'ImagePositionPatient' string format error, cannot check for missing slices!")
+                    break;
+
+        else:
+            log.warning("'ImageOrientationPatient' string format error, cannot check for missing slices!")
+
+    ## Unable to find locations
+    else:
+        log.warning("'SliceLocation' or 'ImageOrientationPatient' and 'ImagePositionPatient' missing, cannot check for missing slices!")
+
+
+    ## If locations is not empty (i.e. if nothing's gone wrong), sort it to get accurate intervals
+    ## Also if there's only one location found, we don't need to check intervals
+    if len(locations) > 1:
+        locations.sort()
+
+    ## Now we use the locations to measure intervals
+        intervals = []
+        for i, loc in enumerate(locations[1:]):
+            intervals.append(locations[i+1] - locations[i])
+
+        ## We want to ignore (i.e. remove) all intervals near 0 because they most likely come from duplicate images
+        intervals = [ elem for elem in intervals if elem > 0.001 ]
+        ## Intervals are expected to vary ever so slightly, so we round to the hundredths place for easier comparison
+        intervals = [round(x,3) for x in intervals]
+
+        ## Check for any outliers in the interval list
+        for i, val in enumerate(intervals):
+            tolerance = 0.1
+            if val > min(intervals) + tolerance:
+                error_dict = {
+                    "error_message": "Missing slice between slices {} and {}! {}".format(i+1,i+2, sequence_message),
+                    "revalidate": False
+                }
+                slice_error_list.append(error_dict)
+
+    return slice_error_list
+
+
 def validate_against_rules(df):
     error_list = []
+    # Holds all unique sequence names in df (It's possible SequenceName is not a valid field in df)
+    sequences = []
+    # Holds the new frames after we separate df by SequenceName (i.e. this is a LIST of FRAMES)
+    new_frames = []
+
+    # Split df into multiple frames by SequenceName tag
+    if 'SequenceName' in df:
+        # Populate sequences list and then use it to populate new_frames
+        for sequence in df['SequenceName']:
+            if sequence not in sequences:
+                sequences.append(sequence)
+        for sequence in sequences:
+            new_frames.append((df.loc[df['SequenceName'] == sequence]))
+       
+        # If there's only one sequence, we don't bother alerting the user and pass an empty string to check_missing_slices()
+        if len(sequences) == 1:
+            sequences = ['']
+        else:
+            log.warning("Multiple image sequences found in acquisition ({}), will check each individually".format(sequences))
+
+    # If SequenceName tag is not in the header, don't bother trying to split up df
+    else:
+        sequences = ['']
+        new_frames = [df]
+    
+    # For every frame in new_frame, add any missing slice errors to error_list
+    for i, frame in enumerate(new_frames):
+        error_list.extend(check_missing_slices(frame, this_sequence=sequences[i]))
+
+
     # Determine if InstanceNumber is unique (not duplicated)
     if 'InstanceNumber' in df:
         if df['InstanceNumber'].is_unique:
@@ -412,7 +544,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     if session_label:
         metadata['session']['label'] = session_label
     if hasattr(dcm, 'PatientWeight') and dcm.get('PatientWeight'):
-        metadata['session']['weight'] = assign_type(dcm.get('PatientWeight'))
+        metadata['session']['weight'] = dcm.get('PatientWeight')
 
     # Subject Metadata
     metadata['session']['subject'] = {}
