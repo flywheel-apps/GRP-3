@@ -155,7 +155,7 @@ def get_sex_string(sex_str):
     return sex
 
 
-def (s):
+def assign_type(s):
     """
     Sets the type of a given input.
     """
