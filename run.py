@@ -14,6 +14,7 @@ import datetime
 import argparse
 import nibabel
 import pandas as pd
+import numpy as np
 from fnmatch import fnmatch
 from pprint import pprint
 
@@ -407,11 +408,16 @@ def check_missing_slices(df, this_sequence):
         intervals = [ elem for elem in intervals if elem > 0.001 ]
         ## Intervals are expected to vary ever so slightly, so we round to the hundredths place for easier comparison
         intervals = [round(x,3) for x in intervals]
+        
+        mini = min(intervals)
+        median = np.median(intervals)
+        # If an interval is bigger than threshold, it likely has a gap w/ missing slice(s)
+        # Max of two values in case the minimum is an outlier value
+        interval_threshold = max(mini * 1.4, median * 1.2)
 
         ## Check for any outliers in the interval list
         for i, val in enumerate(intervals):
-            tolerance = 0.1
-            if val > min(intervals) + tolerance:
+            if val > interval_threshold:
                 error_dict = {
                     "error_message": "Missing slice between slices {} and {}! {}".format(i+1,i+2, sequence_message),
                     "revalidate": False
