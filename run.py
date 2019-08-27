@@ -322,6 +322,21 @@ def validate_against_template(input_dict, template):
     return validation_errors
 
 
+def most_frequent_interval(intervals):
+    size = len(intervals)
+    for i in [3,2,1]:
+        list = [round(x,i) for x in intervals]
+        dict = {} 
+        count, itm = 0, '' 
+        for item in reversed(list): 
+            dict[item] = dict.get(item, 0) + 1
+            if dict[item] >= count : 
+                count, itm = dict[item], item
+        if count > size/2:
+            return(itm)
+    return None
+
+
 def check_missing_slices(df, this_sequence):
     # holds any error messages related to missing slices
     slice_error_list = []
@@ -351,12 +366,12 @@ def check_missing_slices(df, this_sequence):
         # DICOM headers annoyingly hold arrays as strings with puncuation
         # This function is needed to turn that string into a real data structure
         def string_to_array(str, expected_length):
-            str = str.replace('[','')
-            str = str.replace(']','')
-            str = str.replace(',','')
-            str = str.replace('(','')
-            str = str.replace(')','')
-            arr = str.split()
+            s = s.replace('[','')
+            s = s.replace(']','')
+            s = s.replace(',','')
+            s = s.replace('(','')
+            s = s.replace(')','')
+            arr = s.split()
             return_arr = [float(x) for x in arr]
             # If new array is not expected length, something's gone wrong
             if(len(return_arr) == expected_length):
@@ -366,8 +381,8 @@ def check_missing_slices(df, this_sequence):
 
         # Find normal vector of patient's orientation
         # This line below finds the first ImageOrientationPatient such that ImageType != LOCALIZER
-        str = (df.loc[df['ImageType'] != 'LOCALIZER'])['ImageOrientationPatient'][0]
-        arr = string_to_array(str, expected_length=6)
+        arr_str = (df.loc[df['ImageType'] != 'LOCALIZER'])['ImageOrientationPatient'][0]
+        arr = string_to_array(arr_str, expected_length=6)
         v1 = v2 = normal = []
         if(arr):
             v1 = [arr[0], arr[1], arr[2]]
@@ -406,23 +421,35 @@ def check_missing_slices(df, this_sequence):
 
         ## We want to ignore (i.e. remove) all intervals near 0 because they most likely come from duplicate images
         intervals = [ elem for elem in intervals if elem > 0.001 ]
-        ## Intervals are expected to vary ever so slightly, so we round to the hundredths place for easier comparison
-        intervals = [round(x,3) for x in intervals]
         
-        mini = min(intervals)
-        median = np.median(intervals)
-        # If an interval is bigger than threshold, it likely has a gap w/ missing slice(s)
-        # Max of two values in case the minimum is an outlier value
-        interval_threshold = max(mini * 1.4, median * 1.2)
+        ## Get the most frequent interval in intervals
+        # If most_frequent_interval returns None, end function early
+        mode = most_frequent_interval(intervals)
+        if not mode:
+            error_dict = {
+                "error_message": "Inconsistent slice intervals; no common interval found!",
+                "revalidate": False
+            }
+            slice_error_list.append(error_dict)
+            return slice_error_list
 
-        ## Check for any outliers in the interval list
+        tolerance = 0.2 * mode
+        abnormal_intervals = []
+
         for i, val in enumerate(intervals):
-            if val > interval_threshold:
-                error_dict = {
-                    "error_message": "Missing slice between slices {} and {}! {}".format(i+1,i+2, sequence_message),
-                    "revalidate": False
-                }
-                slice_error_list.append(error_dict)
+            if abs(mode-val) > tolerance:
+                rounded_val = round(val,3)
+                if rounded_val not in abnormal_intervals:
+                    abnormal_intervals.append(rounded_val)
+
+        if len(abnormal_intervals) > 0:
+            abnormal_intervals_str = str(abnormal_intervals).strip('[]')
+            error_dict = {
+                "error_message": "Inconsistent slice intervals. Majority are ~{}mm but gaps include {}!{}"\
+                    .format(mode, abnormal_intervals_str, sequence_message),
+                "revalidate": False
+            }
+            slice_error_list.append(error_dict)
 
     return slice_error_list
 
