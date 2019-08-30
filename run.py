@@ -445,7 +445,7 @@ def check_missing_slices(df, this_sequence):
         if len(abnormal_intervals) > 0:
             abnormal_intervals_str = str(abnormal_intervals).strip('[]')
             error_dict = {
-                "error_message": "Inconsistent slice intervals. Majority are ~{}mm but gaps include {}.{}"\
+                "error_message": "Inconsistent slice intervals. Majority are ~{}mm but intervals include {}.{}"\
                     .format(mode, abnormal_intervals_str, sequence_message),
                 "revalidate": False
             }
