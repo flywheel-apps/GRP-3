@@ -344,7 +344,7 @@ def check_missing_slices(df, this_sequence):
     # sequence_message is added to slice error message if we are dealing with multiple sequences
     sequence_message = ""
     if this_sequence != None and this_sequence != '':
-        sequence_message = '(SequenceName is {}, in case there are multiple.)'.format(this_sequence)
+        sequence_message = ' (SequenceName is {}, in case there are multiple.)'.format(this_sequence)
     
     # Holds all locations of slices
     locations = []
@@ -352,7 +352,7 @@ def check_missing_slices(df, this_sequence):
     ## First we check if acquisition is long enough to warrant slice interval checking (i.e. not localizers)
     threshold = 10
     if len(df) < threshold:
-        log.warning("Small number of images in sequence; slice interval checking will not be performed. {}".format(sequence_message))
+        log.warning("Small number of images in sequence; slice interval checking will not be performed.{}".format(sequence_message))
         return slice_error_list
 
     ## Attempt to find locations via SliceLocation header
@@ -445,7 +445,7 @@ def check_missing_slices(df, this_sequence):
         if len(abnormal_intervals) > 0:
             abnormal_intervals_str = str(abnormal_intervals).strip('[]')
             error_dict = {
-                "error_message": "Inconsistent slice intervals. Majority are ~{}mm but gaps include {}!{}"\
+                "error_message": "Inconsistent slice intervals. Majority are ~{}mm but gaps include {}.{}"\
                     .format(mode, abnormal_intervals_str, sequence_message),
                 "revalidate": False
             }
