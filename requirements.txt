@@ -4,3 +4,4 @@ pydicom
 pytz
 tzlocal
 pandas
+numpy
