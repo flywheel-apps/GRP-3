@@ -109,14 +109,14 @@ def get_timestamp(dcm, timezone):
         study_date = None
         study_time = None
 
-    if hasattr(dcm, 'AcquisitionDate') and hasattr(dcm, 'AcquisitionTime'):
+    if getattr(dcm, 'AcquisitionDate') and getattr(dcm, 'AcquisitionTime'):
         acquitision_date = dcm.AcquisitionDate
         acquisition_time = dcm.AcquisitionTime
-    elif hasattr(dcm, 'AcquisitionDateTime'):
+    elif getattr(dcm, 'AcquisitionDateTime'):
         acquitision_date = dcm.AcquisitionDateTime[0:8]
         acquisition_time = dcm.AcquisitionDateTime[8:]
     # The following allows the timestamps to be set for ScreenSaves
-    elif hasattr(dcm, 'ContentDate') and hasattr(dcm, 'ContentTime'):
+    elif getattr(dcm, 'ContentDate') and getattr(dcm, 'ContentTime'):
         acquitision_date = dcm.ContentDate
         acquisition_time = dcm.ContentTime
     else:
