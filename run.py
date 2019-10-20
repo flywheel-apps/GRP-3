@@ -20,7 +20,15 @@ from pprint import pprint
 
 
 logging.basicConfig()
-log = logging.getLogger('grp-3')
+log = logging.getLogger('GRP-3')
+
+def safe_filename(input_filename):
+    """
+    Return a filename that does not contain illegal filename chars.
+    """
+    import re
+
+    return re.sub('[\\/:"*?<>|]', '_', input_filename)
 
 
 def get_session_label(dcm):
@@ -37,7 +45,9 @@ def get_session_label(dcm):
 
 
 def validate_timezone(zone):
-    # pylint: disable=missing-docstring
+    """
+    Return valid timezone
+    """
     if zone is None:
         zone = tzlocal.get_localzone()
     else:
@@ -184,6 +194,9 @@ def assign_type(s):
 
 
 def format_string(in_string):
+    """
+    Remove non-ascii characters
+    """
     formatted = re.sub(r'[^\x00-\x7f]',r'', str(in_string)) # Remove non-ascii characters
     formatted = ''.join(filter(lambda x: x in string.printable, formatted))
     if len(formatted) == 1 and formatted == '?':
@@ -192,6 +205,9 @@ def format_string(in_string):
 
 
 def get_seq_data(sequence, ignore_keys):
+    """
+    Get seq_data from DICOM sequence
+    """
     seq_dict = {}
     for seq in sequence:
         for s_key in seq.dir():
@@ -215,7 +231,9 @@ def get_seq_data(sequence, ignore_keys):
 
 
 def get_pydicom_header(dcm):
-    # Extract the header values
+    """
+    Extract the header values
+    """
     header = {}
     exclude_tags = ['[Unknown]', 'PixelData', 'Pixel Data',  '[User defined data]', '[Protocol Data Block (compressed)]', '[Histogram tables]', '[Unique image iden]']
     tags = dcm.dir()
@@ -244,6 +262,9 @@ def get_pydicom_header(dcm):
 
 
 def get_csa_header(dcm):
+    """
+    Return csa header from siemens using nibabel (experimental)
+    """
     exclude_tags = ['PhoenixZIP', 'SrMsgBuffer']
     header = {}
     try:
@@ -323,14 +344,17 @@ def validate_against_template(input_dict, template):
 
 
 def most_frequent_interval(intervals):
+    """
+    Find most frequent interval
+    """
     size = len(intervals)
     for i in [3,2,1]:
         list = [round(x,i) for x in intervals]
-        dict = {} 
-        count, itm = 0, '' 
-        for item in reversed(list): 
+        dict = {}
+        count, itm = 0, ''
+        for item in reversed(list):
             dict[item] = dict.get(item, 0) + 1
-            if dict[item] >= count : 
+            if dict[item] >= count :
                 count, itm = dict[item], item
         if count > size/2:
             return(itm)
@@ -338,6 +362,9 @@ def most_frequent_interval(intervals):
 
 
 def check_missing_slices(df, this_sequence):
+    """
+    Find missing slices in sequence
+    """
     # holds any error messages related to missing slices
     slice_error_list = []
 
@@ -345,7 +372,7 @@ def check_missing_slices(df, this_sequence):
     sequence_message = ""
     if this_sequence != None and this_sequence != '':
         sequence_message = ' (SequenceName is {}, in case there are multiple.)'.format(this_sequence)
-    
+
     # Holds all locations of slices
     locations = []
 
@@ -421,7 +448,7 @@ def check_missing_slices(df, this_sequence):
 
         ## We want to ignore (i.e. remove) all intervals near 0 because they most likely come from duplicate images
         intervals = [ elem for elem in intervals if elem > 0.001 ]
-        
+
         ## Get the most frequent interval in intervals
         # If most_frequent_interval returns None, end function early
         mode = most_frequent_interval(intervals)
@@ -455,6 +482,9 @@ def check_missing_slices(df, this_sequence):
 
 
 def validate_against_rules(df):
+    """
+    Validate metadata against template rules
+    """
     error_list = []
     # Holds all unique sequence names in df (It's possible SequenceName is not a valid field in df)
     sequences = []
@@ -469,7 +499,7 @@ def validate_against_rules(df):
                 sequences.append(sequence)
         for sequence in sequences:
             new_frames.append((df.loc[df['SequenceName'] == sequence]))
-       
+
         # If there's only one sequence, we don't bother alerting the user and pass an empty string to check_missing_slices()
         if len(sequences) == 1:
             sequences = ['']
@@ -480,7 +510,7 @@ def validate_against_rules(df):
     else:
         sequences = ['']
         new_frames = [df]
-    
+
     # For every frame in new_frame, add any missing slice errors to error_list
     for i, frame in enumerate(new_frames):
         error_list.extend(check_missing_slices(frame, this_sequence=sequences[i]))
@@ -501,6 +531,9 @@ def validate_against_rules(df):
 
 
 def dicom_date_handler(dcm):
+    """
+    Provide valid acquisition date
+    """
     if dcm.get('AcquisitionDate'):
         pass
     elif dcm.get('SeriesDate'):
@@ -512,7 +545,10 @@ def dicom_date_handler(dcm):
     return dcm
 
 
-def dicom_to_json(zip_file_path, outbase, timezone):
+def dicom_to_json(zip_file_path, outbase, timezone, config):
+    """
+    Read DICOM header and write out to json file
+    """
 
     # Extract the last file in the zip to /tmp/ and read it
     if zipfile.is_zipfile(zip_file_path):
@@ -540,7 +576,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
                 log.warning('%s does not exist!' % dcm_path)
         dcm = dcm_list[-1]
     else:
-        log.info('Not a zip. Attempting to read %s directly' % os.path.basename(zip_file_path))
+        log.warning('Not a zip. Attempting to read %s directly' % zip_file_path)
         dcm = pydicom.read_file(zip_file_path)
         dcm_list = [dcm]
     if not dcm:
@@ -614,7 +650,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
 
     # File metadata
     pydicom_file = {}
-    pydicom_file['name'] = os.path.basename(zip_file_path)
+    pydicom_file['name'] = config['inputs']['dicom']['location']['name']
     pydicom_file['modality'] = format_string(dcm.get('Modality', 'MR'))
     pydicom_file['info'] = {
                                 "header": {
@@ -685,8 +721,16 @@ def dicom_to_json(zip_file_path, outbase, timezone):
 
 
 if __name__ == '__main__':
+    """
+    Metadata Import and Validation for DICOM files. This Gear will parse, import,
+    and validate DICOM header metadata. Those metadata are added to the input file's
+    metadata object (<inputFile>.info). A metadata validation template must be
+    provided as input to the gear, which the gear will use to validate the DICOM
+    metadata. Data which fail this validation will be tagged (with 'error') and
+    an error file will be generated and written to the input container.
+    """
     # Set paths
-    input_folder = '/flywheel/v0/input/file/'
+    input_folder = '/flywheel/v0/input/dicom/'
     output_folder = '/flywheel/v0/output/'
     config_file_path = '/flywheel/v0/config.json'
     output_filepath = os.path.join(output_folder, '.metadata.json')
@@ -696,8 +740,8 @@ if __name__ == '__main__':
         config = json.load(config_data)
 
     # Set dicom path and name from config file
-    dicom_filepath = config['inputs']['dicom']['location']['path']
     dicom_name = config['inputs']['dicom']['location']['name']
+    dicom_filepath = os.path.join(input_folder, safe_filename(dicom_name))
 
     # Set template json filepath (if provided)
     if config['inputs'].get('json_template'):
@@ -721,6 +765,6 @@ if __name__ == '__main__':
         template.update(import_template)
     json_template = template.copy()
 
-    metadatafile = dicom_to_json(dicom_filepath, output_filepath, timezone)
+    metadatafile = dicom_to_json(dicom_filepath, output_filepath, timezone, config)
     if os.path.isfile(metadatafile):
         os.sys.exit(0)
