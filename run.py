@@ -356,17 +356,17 @@ def check_missing_slices(df, this_sequence):
         return slice_error_list
 
     ## Attempt to find locations via SliceLocation header
-    if('SliceLocation' in df) and True:
-        # This line iterates through all SliceLocations in rows where ImageType != LOCALIZER
-        for location in (df.loc[df['ImageType'] != 'LOCALIZER'])['SliceLocation']:
+    if ('SliceLocation' and 'ImageType' in df) and True:
+        # This line iterates through all SliceLocations in rows where LOCALIZER not in ImageType
+        for location in (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['SliceLocation']:
             locations.append(location)
 
     ## Attempt to find locations by ImageOrientationPatient and ImagePositionPatient headers
-    elif('ImageOrientationPatient' in df) and ('ImagePositionPatient' in df):
+    elif 'ImageOrientationPatient' and 'ImagePositionPatient' and 'ImageType' in df.columns:
         # DICOM headers annoyingly hold arrays as strings with puncuation
         # This function is needed to turn that string into a real data structure
-        def string_to_array(str, expected_length):
-            s = s.replace('[','')
+        def string_to_array(input_str, expected_length):
+            s = input_str.replace('[', '')
             s = s.replace(']','')
             s = s.replace(',','')
             s = s.replace('(','')
@@ -380,8 +380,9 @@ def check_missing_slices(df, this_sequence):
                 return False
 
         # Find normal vector of patient's orientation
-        # This line below finds the first ImageOrientationPatient such that ImageType != LOCALIZER
-        arr_str = (df.loc[df['ImageType'] != 'LOCALIZER'])['ImageOrientationPatient'][0]
+        # This line below finds the first ImageOrientationPatient where LOCALIZER not in ImageType
+
+        arr_str = (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['ImageOrientationPatient'][0]
         arr = string_to_array(arr_str, expected_length=6)
         v1 = v2 = normal = []
         if(arr):
@@ -390,8 +391,8 @@ def check_missing_slices(df, this_sequence):
             normal = np.cross(v2, v1)
 
             # Slice locations are the position vectors times the normal vector from above
-            # This line iterates through all ImagePositionPatients in rows where ImageType != LOCALIZER
-            for pos in (df.loc[df['ImageType'] != 'LOCALIZER'])['ImagePositionPatient']:
+            # This line iterates through all ImagePositionPatients in rows where LOCALIZER not in ImageType
+            for pos in (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['ImageOrientationPatient']:
                 position = string_to_array(pos, expected_length=3)
                 if(position):
                     location = np.dot(normal, position)
