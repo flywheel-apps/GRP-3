@@ -359,7 +359,7 @@ def check_missing_slices(df, this_sequence):
         return slice_error_list
 
     ## Attempt to find locations via SliceLocation header
-    if ('SliceLocation' and 'ImageType' in df) and True:
+    if (('SliceLocation' in df) and ('ImageType' in df)) and True:
         # This line iterates through all SliceLocations in rows where LOCALIZER not in ImageType
         for location in (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['SliceLocation']:
             locations.append(location)
@@ -572,7 +572,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
 
     # Session metadata
     metadata['session'] = {}
-    session_timestamp, acquisition_timestamp = get_timestamp(dcm, timezone);
+    session_timestamp, acquisition_timestamp = get_timestamp(dcm, timezone)
     if session_timestamp:
         metadata['session']['timestamp'] = session_timestamp
     if hasattr(dcm, 'OperatorsName') and dcm.get('OperatorsName'):
