@@ -111,23 +111,30 @@ def get_timestamp(dcm, timezone):
 
     if hasattr(dcm, 'AcquisitionDate') and hasattr(dcm, 'AcquisitionTime') and \
        getattr(dcm, 'AcquisitionDate') and getattr(dcm, 'AcquisitionTime'):
-        acquitision_date = dcm.AcquisitionDate
+        acquisition_date = dcm.AcquisitionDate
         acquisition_time = dcm.AcquisitionTime
     elif hasattr(dcm, 'AcquisitionDateTime') and  \
          getattr(dcm, 'AcquisitionDateTime'):
-        acquitision_date = dcm.AcquisitionDateTime[0:8]
+        acquisition_date = dcm.AcquisitionDateTime[0:8]
         acquisition_time = dcm.AcquisitionDateTime[8:]
     # The following allows the timestamps to be set for ScreenSaves
     elif hasattr(dcm, 'ContentDate') and hasattr(dcm, 'ContentTime') and \
          getattr(dcm, 'ContentDate') and getattr(dcm, 'ContentTime'):
-        acquitision_date = dcm.ContentDate
+        acquisition_date = dcm.ContentDate
         acquisition_time = dcm.ContentTime
+    # These will ensure that acquisition_date and acquisition_time are set
+    elif hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime'):
+        acquisition_date = dcm.StudyDate
+        acquisition_time = dcm.StudyTime
+    elif hasattr(dcm, 'StudyDateTime'):
+        acquisition_date = dcm.StudyDateTime[0:8]
+        acquisition_time = dcm.StudyDateTime[8:]
     else:
-        acquitision_date = None
+        acquisition_date = None
         acquisition_time = None
 
     session_timestamp = timestamp(study_date, study_time, timezone)
-    acquisition_timestamp = timestamp(acquitision_date, acquisition_time, timezone)
+    acquisition_timestamp = timestamp(acquisition_date, acquisition_time, timezone)
 
     if session_timestamp:
         if session_timestamp.tzinfo is None:
