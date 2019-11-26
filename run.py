@@ -99,32 +99,50 @@ def get_timestamp(dcm, timezone):
     """
     Parse Study Date and Time, return acquisition and session timestamps
     """
-    if hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime'):
+    if hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime') and \
+       getattr(dcm, 'StudyDate') and getattr(dcm, 'StudyTime'):
         study_date = dcm.StudyDate
         study_time = dcm.StudyTime
-    elif hasattr(dcm, 'StudyDateTime'):
+    elif hasattr(dcm, 'StudyDateTime') and \
+         getattr(dcm, 'StudyDateTime'):
         study_date = dcm.StudyDateTime[0:8]
         study_time = dcm.StudyDateTime[8:]
+    elif hasattr(dcm, 'SeriesDate') and hasattr(dcm, 'SeriesTime') and \
+         getattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesTime'):
+        study_date = dcm.SeriesDate
+        study_time = dcm.SeriesTime         
     else:
         study_date = None
         study_time = None
 
-    if getattr(dcm, 'AcquisitionDate') and getattr(dcm, 'AcquisitionTime'):
-        acquitision_date = dcm.AcquisitionDate
+    if hasattr(dcm, 'AcquisitionDate') and hasattr(dcm, 'AcquisitionTime') and \
+       getattr(dcm, 'AcquisitionDate') and getattr(dcm, 'AcquisitionTime'):
+        acquisition_date = dcm.AcquisitionDate
         acquisition_time = dcm.AcquisitionTime
-    elif getattr(dcm, 'AcquisitionDateTime'):
-        acquitision_date = dcm.AcquisitionDateTime[0:8]
+    elif hasattr(dcm, 'AcquisitionDateTime') and  \
+         getattr(dcm, 'AcquisitionDateTime'):
+        acquisition_date = dcm.AcquisitionDateTime[0:8]
         acquisition_time = dcm.AcquisitionDateTime[8:]
     # The following allows the timestamps to be set for ScreenSaves
-    elif getattr(dcm, 'ContentDate') and getattr(dcm, 'ContentTime'):
-        acquitision_date = dcm.ContentDate
+    elif hasattr(dcm, 'ContentDate') and hasattr(dcm, 'ContentTime') and \
+         getattr(dcm, 'ContentDate') and getattr(dcm, 'ContentTime'):
+        acquisition_date = dcm.ContentDate
         acquisition_time = dcm.ContentTime
+    # These will ensure that acquisition_date and acquisition_time are set
+    elif hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime') and \
+         getattr(dcm, 'StudyDate') and getattr(dcm, 'StudyTime'):
+        acquisition_date = dcm.StudyDate
+        acquisition_time = dcm.StudyTime
+    elif hasattr(dcm, 'StudyDateTime') and \
+         getattr(dcm, 'StudyDateTime'):
+        acquisition_date = dcm.StudyDateTime[0:8]
+        acquisition_time = dcm.StudyDateTime[8:]
     else:
-        acquitision_date = None
+        acquisition_date = None
         acquisition_time = None
 
     session_timestamp = timestamp(study_date, study_time, timezone)
-    acquisition_timestamp = timestamp(acquitision_date, acquisition_time, timezone)
+    acquisition_timestamp = timestamp(acquisition_date, acquisition_time, timezone)
 
     if session_timestamp:
         if session_timestamp.tzinfo is None:
@@ -356,7 +374,7 @@ def check_missing_slices(df, this_sequence):
         return slice_error_list
 
     ## Attempt to find locations via SliceLocation header
-    if ('SliceLocation' and 'ImageType' in df) and True:
+    if (('SliceLocation' in df) and ('ImageType' in df)) and True:
         # This line iterates through all SliceLocations in rows where LOCALIZER not in ImageType
         for location in (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['SliceLocation']:
             locations.append(location)
@@ -569,7 +587,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
 
     # Session metadata
     metadata['session'] = {}
-    session_timestamp, acquisition_timestamp = get_timestamp(dcm, timezone);
+    session_timestamp, acquisition_timestamp = get_timestamp(dcm, timezone)
     if session_timestamp:
         metadata['session']['timestamp'] = session_timestamp
     if hasattr(dcm, 'OperatorsName') and dcm.get('OperatorsName'):
