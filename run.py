@@ -99,12 +99,18 @@ def get_timestamp(dcm, timezone):
     """
     Parse Study Date and Time, return acquisition and session timestamps
     """
-    if hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime'):
+    if hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime') and \
+       getattr(dcm, 'StudyDate') and getattr(dcm, 'StudyTime'):
         study_date = dcm.StudyDate
         study_time = dcm.StudyTime
-    elif hasattr(dcm, 'StudyDateTime'):
+    elif hasattr(dcm, 'StudyDateTime') and \
+         getattr(dcm, 'StudyDateTime'):
         study_date = dcm.StudyDateTime[0:8]
         study_time = dcm.StudyDateTime[8:]
+    elif hasattr(dcm, 'SeriesDate') and hasattr(dcm, 'SeriesTime') and \
+         getattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesTime'):
+        study_date = dcm.SeriesDate
+        study_time = dcm.SeriesTime         
     else:
         study_date = None
         study_time = None
@@ -123,10 +129,12 @@ def get_timestamp(dcm, timezone):
         acquisition_date = dcm.ContentDate
         acquisition_time = dcm.ContentTime
     # These will ensure that acquisition_date and acquisition_time are set
-    elif hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime'):
+    elif hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime') and \
+         getattr(dcm, 'StudyDate') and getattr(dcm, 'StudyTime'):
         acquisition_date = dcm.StudyDate
         acquisition_time = dcm.StudyTime
-    elif hasattr(dcm, 'StudyDateTime'):
+    elif hasattr(dcm, 'StudyDateTime') and \
+         getattr(dcm, 'StudyDateTime'):
         acquisition_date = dcm.StudyDateTime[0:8]
         acquisition_time = dcm.StudyDateTime[8:]
     else:
