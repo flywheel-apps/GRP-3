@@ -309,6 +309,7 @@ def validate_against_template(input_dict, template):
             'The json_template is invalid. Please make the correction and try again.'
         )
         log.exception(e)
+        os.sys.exit(1)
 
     # Initialize json schema validator
     validator = jsonschema.Draft7Validator(template)
