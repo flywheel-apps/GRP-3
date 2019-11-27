@@ -302,6 +302,14 @@ def validate_against_template(input_dict, template):
     :param error_log_path: the path to which to write error log JSON
     :return: validation_errors, an object containing information on validation errors
     """
+    try:
+        jsonschema.Draft7Validator.check_schema(template)
+    except Exception as e:
+        log.fatal(
+            'The json_template is invalid. Please make the correction and try again.'
+        )
+        log.exception(e)
+
     # Initialize json schema validator
     validator = jsonschema.Draft7Validator(template)
     # Initialize list object for storing validation errors
@@ -418,7 +426,7 @@ def check_missing_slices(df, this_sequence):
                 else:
                     locations = []
                     log.warning("'ImagePositionPatient' string format error, cannot check for missing slices!")
-                    break;
+                    break
 
         else:
             log.warning("'ImageOrientationPatient' string format error, cannot check for missing slices!")
