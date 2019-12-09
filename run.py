@@ -18,9 +18,11 @@ import numpy as np
 from fnmatch import fnmatch
 from pprint import pprint
 
+from utils.dicom import dicom_archive
 
 logging.basicConfig()
 log = logging.getLogger('grp-3')
+log.setLevel('INFO')
 
 
 def get_session_label(dcm):
@@ -703,6 +705,24 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     return metafile_outname
 
 
+def split_embedded_localizer(dcm_archive_path, output_dir):
+    with dicom_archive.make_temp_directory() as tmp_dir:
+        dcm_archive_obj = dicom_archive.DicomArchive(dcm_archive_path, tmp_dir, dataset_list=True)
+        if dcm_archive_obj.contains_embedded_localizer():
+            log.info('Splitting embedded localizer...')
+            dcm_archive_obj.split_archive_on_unique_tag(
+                'ImageOrientationPatient',
+                output_dir,
+                '_Localizer',
+                all_unique=False
+            )
+            # Exit - gear rule should pick up new files and extract+Validate
+            log.info(
+                'Embedded localizer split! Please run this gear on the output dicom archives if a gear rule is not set!'
+            )
+            os.sys.exit(0)
+
+
 if __name__ == '__main__':
     # Set paths
     input_folder = '/flywheel/v0/input/file/'
@@ -714,6 +734,8 @@ if __name__ == '__main__':
     with open(config_file_path) as config_data:
         config = json.load(config_data)
 
+    # Get config values
+    split_localizer = config['config']['split_localizer']
     # Set dicom path and name from config file
     dicom_filepath = config['inputs']['dicom']['location']['path']
     dicom_name = config['inputs']['dicom']['location']['name']
@@ -727,6 +749,10 @@ if __name__ == '__main__':
     # Determine the level from which the gear was invoked
     hierarchy_level = config['inputs']['dicom']['hierarchy']['type']
 
+    # Split embedded localizers if configured to do so and if the
+    # Dicom archive is a series that contains an embedded localizer
+    if split_localizer:
+        split_embedded_localizer(dicom_filepath, output_folder)
     # Configure timezone
     timezone = validate_timezone(tzlocal.get_localzone())
 
