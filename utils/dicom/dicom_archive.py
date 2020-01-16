@@ -64,7 +64,6 @@ class DicomFile:
     def __init__(self, file_path, root_path, force=False):
         self.path = file_path
         self.relpath = os.path.relpath(file_path, root_path)
-
         try:
             self.dataset = pydicom.dcmread(file_path, force=force)
             self.header_dict = get_pydicom_header(self.dataset)
@@ -74,11 +73,13 @@ class DicomFile:
 
 
 class DicomArchive:
-    def __init__(self, zip_path, extract_dir, dataset_list=False):
+    def __init__(self, zip_path, extract_dir, dataset_list=False, force=False):
         self.path = zip_path
         self.dataset = None
         self.dataset_list = None
         self.extract_dir = extract_dir
+        self.force = force
+
         with zipfile.ZipFile(self.path) as zipf:
             file_list = zipf.namelist()
             # Get full paths and remove directories from list
@@ -95,7 +96,7 @@ class DicomArchive:
             with zipfile.ZipFile(self.path) as zipf:
                 extract_path = zipf.extract(fp, self.extract_dir)
                 if os.path.isfile(extract_path):
-                    dicom_file = DicomFile(extract_path, self.extract_dir)
+                    dicom_file = DicomFile(extract_path, self.extract_dir, self.force)
                     file_dataset = dicom_file.dataset
                     if file_dataset:
                         # Here we check for the Raw Data Storage SOP Class, if there

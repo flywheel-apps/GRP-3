@@ -112,7 +112,7 @@ def get_timestamp(dcm, timezone):
     elif hasattr(dcm, 'SeriesDate') and hasattr(dcm, 'SeriesTime') and \
          getattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesTime'):
         study_date = dcm.SeriesDate
-        study_time = dcm.SeriesTime         
+        study_time = dcm.SeriesTime
     else:
         study_date = None
         study_time = None
@@ -346,11 +346,11 @@ def most_frequent_interval(intervals):
     size = len(intervals)
     for i in [3,2,1]:
         list = [round(x,i) for x in intervals]
-        dict = {} 
-        count, itm = 0, '' 
-        for item in reversed(list): 
+        dict = {}
+        count, itm = 0, ''
+        for item in reversed(list):
             dict[item] = dict.get(item, 0) + 1
-            if dict[item] >= count : 
+            if dict[item] >= count :
                 count, itm = dict[item], item
         if count > size/2:
             return(itm)
@@ -365,7 +365,7 @@ def check_missing_slices(df, this_sequence):
     sequence_message = ""
     if this_sequence != None and this_sequence != '':
         sequence_message = ' (SequenceName is {}, in case there are multiple.)'.format(this_sequence)
-    
+
     # Holds all locations of slices
     locations = []
 
@@ -442,7 +442,7 @@ def check_missing_slices(df, this_sequence):
 
         ## We want to ignore (i.e. remove) all intervals near 0 because they most likely come from duplicate images
         intervals = [ elem for elem in intervals if elem > 0.001 ]
-        
+
         ## Get the most frequent interval in intervals
         # If most_frequent_interval returns None, end function early
         mode = most_frequent_interval(intervals)
@@ -490,7 +490,7 @@ def validate_against_rules(df):
                 sequences.append(sequence)
         for sequence in sequences:
             new_frames.append((df.loc[df['SequenceName'] == sequence]))
-       
+
         # If there's only one sequence, we don't bother alerting the user and pass an empty string to check_missing_slices()
         if len(sequences) == 1:
             sequences = ['']
@@ -501,7 +501,7 @@ def validate_against_rules(df):
     else:
         sequences = ['']
         new_frames = [df]
-    
+
     # For every frame in new_frame, add any missing slice errors to error_list
     for i, frame in enumerate(new_frames):
         error_list.extend(check_missing_slices(frame, this_sequence=sequences[i]))
@@ -533,7 +533,7 @@ def dicom_date_handler(dcm):
     return dcm
 
 
-def dicom_to_json(zip_file_path, outbase, timezone):
+def dicom_to_json(zip_file_path, outbase, timezone, force=False):
 
     # Extract the last file in the zip to /tmp/ and read it
     if zipfile.is_zipfile(zip_file_path):
@@ -546,7 +546,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
             if os.path.isfile(dcm_path):
                 try:
                     log.info('reading %s' % dcm_path)
-                    dcm_tmp = pydicom.read_file(dcm_path)
+                    dcm_tmp = pydicom.read_file(dcm_path, force=force)
                     # Here we check for the Raw Data Storage SOP Class, if there
                     # are other pydicom files in the zip then we read the next one,
                     # if this is the only class of pydicom in the file, we accept
@@ -562,7 +562,7 @@ def dicom_to_json(zip_file_path, outbase, timezone):
         dcm = dcm_list[-1]
     else:
         log.info('Not a zip. Attempting to read %s directly' % os.path.basename(zip_file_path))
-        dcm = pydicom.read_file(zip_file_path)
+        dcm = pydicom.read_file(zip_file_path, force=force)
         dcm_list = [dcm]
     if not dcm:
         log.warning('dcm is empty!!!')
@@ -705,9 +705,9 @@ def dicom_to_json(zip_file_path, outbase, timezone):
     return metafile_outname
 
 
-def split_embedded_localizer(dcm_archive_path, output_dir):
+def split_embedded_localizer(dcm_archive_path, output_dir, force=False):
     with dicom_archive.make_temp_directory() as tmp_dir:
-        dcm_archive_obj = dicom_archive.DicomArchive(dcm_archive_path, tmp_dir, dataset_list=True)
+        dcm_archive_obj = dicom_archive.DicomArchive(dcm_archive_path, tmp_dir, dataset_list=True, force=force)
         if dcm_archive_obj.contains_embedded_localizer():
             log.info('Splitting embedded localizer...')
             dcm_archive_obj.split_archive_on_unique_tag(
@@ -736,6 +736,7 @@ if __name__ == '__main__':
 
     # Get config values
     split_localizer = config['config']['split_localizer']
+    force_dicom_read = config['config']['force_dicom_read']
     # Set dicom path and name from config file
     dicom_filepath = config['inputs']['dicom']['location']['path']
     dicom_name = config['inputs']['dicom']['location']['name']
@@ -752,7 +753,11 @@ if __name__ == '__main__':
     # Split embedded localizers if configured to do so and if the
     # Dicom archive is a series that contains an embedded localizer
     if split_localizer:
-        split_embedded_localizer(dicom_filepath, output_folder)
+        try:
+            split_embedded_localizer(dicom_filepath, output_folder, force_dicom_read)
+        except Exception as err:
+            log.error('split_embedded_localizer failed! err={}'.format(err))
+
     # Configure timezone
     timezone = validate_timezone(tzlocal.get_localzone())
 
@@ -766,6 +771,6 @@ if __name__ == '__main__':
         template.update(import_template)
     json_template = template.copy()
 
-    metadatafile = dicom_to_json(dicom_filepath, output_filepath, timezone)
+    metadatafile = dicom_to_json(dicom_filepath, output_filepath, timezone, force_dicom_read)
     if os.path.isfile(metadatafile):
         os.sys.exit(0)
