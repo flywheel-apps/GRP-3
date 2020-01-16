@@ -1,5 +1,3 @@
-#flywheel/csv-import
-
 # Start with python 3.7
 FROM python:3.7 as base
 MAINTAINER Flywheel <support@flywheel.io>
