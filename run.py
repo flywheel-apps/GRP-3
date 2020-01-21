@@ -386,6 +386,7 @@ def check_missing_slices(df, this_sequence):
 
     ## Attempt to find locations via SliceLocation header
     if (('SliceLocation' in df) and ('ImageType' in df)) and True:
+        df = df.dropna(subset=['SliceLocation', 'ImageType'])
         # This line iterates through all SliceLocations in rows where LOCALIZER not in ImageType
         for location in (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['SliceLocation']:
             locations.append(location)
