@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/flywheel-apps/GRP-3.svg?style=svg)](https://circleci.com/gh/flywheel-apps/GRP-3)
+
 # flywheel/GRP-3
 Metadata Import and Validation: DICOM
 
