@@ -27,7 +27,7 @@ def make_temp_directory():
 def make_list_items_hashable(input_list):
     output_list = list()
     for item in input_list:
-        if isinstance(item, collections.Iterable) or isinstance(item, MultiValue):
+        if not isinstance(item, collections.abc.Hashable):
             item = tuple(item)
         output_list.append(item)
     return output_list
