@@ -1,23 +1,15 @@
-# Start with python 3.7
-FROM python:3.7 as base
+FROM python:3.7-slim-stretch
 MAINTAINER Flywheel <support@flywheel.io>
 
-# Install pandas
-COPY requirements.txt ./requirements.txt
-RUN pip install -r requirements.txt
+ENV FLYWHEEL="/flywheel/v0"
+COPY ["requirements.txt", "/opt/requirements.txt"]
+RUN pip install -r /opt/requirements.txt \
+    && mkdir -p $FLYWHEEL \
+    && useradd --no-user-group --create-home --shell /bin/bash flywheel
 
-# Flywheel spec (v0)
-WORKDIR /flywheel/v0
+COPY utils $FLYWHEEL/utils
+COPY run.py manifest.json $FLYWHEEL/
+RUN chmod +x $FLYWHEEL/run.py
 
-# Make a target for testing locally
-FROM base as testing
-COPY tests ./tests
-RUN pip install -r tests/requirements.txt
+WORKDIR $FLYWHEEL
 
-# Copy executables into place
-COPY run.py ./run.py
-RUN chmod +x ./run.py
-COPY manifest.json .
-
-# Add a default ENTRYPOINT
-ENTRYPOINT ["/flywheel/v0/run.py"]
