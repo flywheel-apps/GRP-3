@@ -1,3 +1,4 @@
+import collections
 import contextlib
 import logging
 import os
@@ -7,6 +8,7 @@ import tempfile
 import zipfile
 
 import pydicom
+from pydicom.multival import MultiValue
 
 from .dicom_metadata import get_pydicom_header
 
@@ -20,6 +22,15 @@ def make_temp_directory():
         yield temp_dir
     finally:
         shutil.rmtree(temp_dir)
+
+
+def make_list_items_hashable(input_list):
+    output_list = list()
+    for item in input_list:
+        if isinstance(item, collections.Iterable) or isinstance(item, MultiValue):
+            item = tuple(item)
+        output_list.append(item)
+    return output_list
 
 
 def create_zip_from_file_list(root_dir, file_list, output_path, comment=None):
@@ -115,39 +126,41 @@ class DicomArchive:
                             break
 
     def dicom_tag_value_list(self, dicom_tag):
+
         if not self.dataset_list:
-            self.initialize_dataset(self.extract_dir)
+            self.initialize_dataset(dataset_list=True)
 
         if not self.dataset.get(dicom_tag):
-            log.error(f'{dicom_tag} is missing from {os.path.basename(self.path)}')
-            return None
-        else:
-            return [dicom_file.dataset.get(dicom_tag) for dicom_file in self.dataset_list if dicom_file.dataset]
+            log.warning(f'{dicom_tag} is missing from {os.path.basename(self.path)}')
+        value_list = [dicom_file.dataset.get(dicom_tag) for dicom_file in self.dataset_list]
+
+        return value_list
 
     def dicom_tag_value_dict(self, dicom_tag):
         if not self.dataset_list:
             self.initialize_dataset(self.extract_dir)
 
-        if not self.dataset.get(dicom_tag):
-            log.error(f'{dicom_tag} is missing from {os.path.basename(self.path)}')
-            return None
-        else:
-            value_dict = dict()
-            for dicom_file in self.dataset_list:
-                tag_value = dicom_file.header_dict.get(dicom_tag)
-                if tag_value:
-                    if type(tag_value) == list:
-                        tag_value_key = tuple(tag_value)
-                    else:
-                        tag_value_key = tag_value
+        value_dict = dict()
+        for dicom_file in self.dataset_list:
+            tag_value = dicom_file.header_dict.get(dicom_tag)
+            if tag_value:
+                if type(tag_value) == list:
+                    tag_value_key = tuple(tag_value)
                 else:
-                    tag_value_key = 'NA'
-                if not value_dict.get(tag_value_key):
-                    value_dict[tag_value_key] = list()
-                value_dict[tag_value_key].append(dicom_file.path)
-            return value_dict
+                    tag_value_key = tag_value
+            else:
+                tag_value_key = 'NA'
+            if not value_dict.get(tag_value_key):
+                value_dict[tag_value_key] = list()
+            value_dict[tag_value_key].append(dicom_file.path)
+
+        return value_dict
 
     def split_archive_on_unique_tag(self, dicom_tag, output_dir, append_str, all_unique=True):
+
+        if not self.dataset.get(dicom_tag):
+            log.warning(f'{dicom_tag} is missing from {os.path.basename(self.path)}')
+
         tag_dict = self.dicom_tag_value_dict(dicom_tag)
         top_value = max(tag_dict, key=lambda x: len(tag_dict[x]))
 
@@ -174,7 +187,7 @@ class DicomArchive:
         embedded_localizer = False
         iop_value_list = self.dicom_tag_value_list('ImageOrientationPatient')
         # Convert to list of tuples so it's hashable for set
-        iop_tuple_list = [tuple(iop_val) for iop_val in iop_value_list]
+        iop_tuple_list = make_list_items_hashable(iop_value_list)
         image_count = len(iop_tuple_list)
         iop_tuple_set = set(iop_tuple_list)
         nunique_iop = len(iop_tuple_set)
@@ -189,6 +202,7 @@ class DicomArchive:
     def select_files_by_tag_value(self, dicom_tag, value):
         if not self.dataset_list:
             self.initialize_dataset(self.extract_dir)
+
         if not self.dataset.get(dicom_tag):
             log.error(f'{dicom_tag} is missing from {os.path.basename(self.path)}')
 
