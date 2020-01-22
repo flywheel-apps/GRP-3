@@ -766,7 +766,7 @@ if __name__ == '__main__':
         try:
             split_embedded_localizer(dicom_filepath, output_folder, force_dicom_read)
         except Exception as err:
-            log.error('split_embedded_localizer failed! err={}'.format(err))
+            log.error('split_embedded_localizer failed! err={}'.format(err), exc_info=True)
 
     # Configure timezone
     timezone = validate_timezone(tzlocal.get_localzone())
