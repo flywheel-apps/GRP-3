@@ -386,6 +386,7 @@ def check_missing_slices(df, this_sequence):
 
     ## Attempt to find locations via SliceLocation header
     if (('SliceLocation' in df) and ('ImageType' in df)) and True:
+        df = df.dropna(subset=['SliceLocation', 'ImageType'])
         # This line iterates through all SliceLocations in rows where LOCALIZER not in ImageType
         for location in (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['SliceLocation']:
             locations.append(location)
@@ -765,7 +766,7 @@ if __name__ == '__main__':
         try:
             split_embedded_localizer(dicom_filepath, output_folder, force_dicom_read)
         except Exception as err:
-            log.error('split_embedded_localizer failed! err={}'.format(err))
+            log.error('split_embedded_localizer failed! err={}'.format(err), exc_info=True)
 
     # Configure timezone
     timezone = validate_timezone(tzlocal.get_localzone())
