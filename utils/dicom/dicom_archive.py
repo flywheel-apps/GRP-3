@@ -90,11 +90,14 @@ class DicomArchive:
         self.dataset_list = None
         self.extract_dir = extract_dir
         self.force = force
-
-        with zipfile.ZipFile(self.path) as zipf:
-            file_list = zipf.namelist()
-            # Get full paths and remove directories from list
-            self.file_list = [fp for fp in file_list if not fp.endswith(os.path.sep)]
+        if zipfile.is_zipfile(self.path):
+            with zipfile.ZipFile(self.path) as zipf:
+                file_list = zipf.namelist()
+                # Get full paths and remove directories from list
+                self.file_list = [fp for fp in file_list if not fp.endswith(os.path.sep)]
+        else:
+            log.info(f'{self.path} is not a zip')
+            self.file_list = [self.path]
         try:
             self.initialize_dataset(dataset_list=dataset_list)
         except Exception as e:
@@ -103,27 +106,35 @@ class DicomArchive:
     def initialize_dataset(self, dataset_list=False):
         if dataset_list:
             self.dataset_list = list()
-        for fp in self.file_list:
-            with zipfile.ZipFile(self.path) as zipf:
-                extract_path = zipf.extract(fp, self.extract_dir)
-                if os.path.isfile(extract_path):
-                    dicom_file = DicomFile(extract_path, self.extract_dir, self.force)
-                    file_dataset = dicom_file.dataset
-                    if file_dataset:
-                        # Here we check for the Raw Data Storage SOP Class, if there
-                        # are other pydicom files in the zip then we read the next one,
-                        # if this is the only class of pydicom in the file, we accept
-                        # our fate and move on.
-                        if file_dataset.get('SOPClassUID') == 'Raw Data Storage' and not self.dataset:
-                            log.info(f'{os.path.basename(fp)} is Raw Data Storage. Skipping...')
-                            continue
-                        if dataset_list:
-                            self.dataset_list.append(dicom_file)
-                            if not self.dataset:
+        if zipfile.is_zipfile(self.path):
+            for fp in self.file_list:
+                with zipfile.ZipFile(self.path) as zipf:
+                    extract_path = zipf.extract(fp, self.extract_dir)
+                    if os.path.isfile(extract_path):
+                        dicom_file = DicomFile(extract_path, self.extract_dir, self.force)
+                        file_dataset = dicom_file.dataset
+                        if file_dataset:
+                            # Here we check for the Raw Data Storage SOP Class, if there
+                            # are other pydicom files in the zip then we read the next one,
+                            # if this is the only class of pydicom in the file, we accept
+                            # our fate and move on.
+                            if file_dataset.get('SOPClassUID') == 'Raw Data Storage' and not self.dataset:
+                                log.info(f'{os.path.basename(fp)} is Raw Data Storage. Skipping...')
+                                continue
+                            if dataset_list:
+                                self.dataset_list.append(dicom_file)
+                                if not self.dataset:
+                                    self.dataset = file_dataset
+                            else:
                                 self.dataset = file_dataset
-                        else:
-                            self.dataset = file_dataset
-                            break
+                                break
+        elif os.path.isfile(self.path):
+            dicom_file = DicomFile(self.path, os.path.dirname(self.path), self.force)
+            file_dataset = dicom_file.dataset
+            if file_dataset:
+                self.dataset = file_dataset
+                if dataset_list:
+                    self.dataset_list.append(dicom_file)
 
     def dicom_tag_value_list(self, dicom_tag):
 
