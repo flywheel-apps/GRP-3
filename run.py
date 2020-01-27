@@ -622,27 +622,28 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
         except:
             pass
     if hasattr(dcm, 'PatientName'):
-        if hasattr(dcm.get('PatientName'), 'given_name'):
+        if hasattr(dcm.get('PatientName'), 'given_name') and hasattr(dcm.get('PatientName'), 'family_name'):
             # If the first name or last name field has a space-separated string, and one or the other field is not
             # present, then we assume that the operator put both first and last names in that one field. We then
             # parse that field to populate first and last name.
-            metadata['session']['subject']['firstname'] = str(format_string(dcm.get('PatientName').given_name))
-            if not hasattr(dcm.get('PatientName'), 'family_name'):
-                name = format_string(dcm.get('PatientName').given_name.split(' '))
-                if len(name) == 2:
-                    first = name[0]
-                    last = name[1]
-                    metadata['session']['subject']['lastname'] = str(last)
-                    metadata['session']['subject']['firstname'] = str(first)
-        if hasattr(dcm.get('PatientName'), 'family_name'):
-            metadata['session']['subject']['lastname'] = str(format_string(dcm.get('PatientName').family_name))
-            if not hasattr(dcm.get('PatientName'), 'given_name'):
-                name = format_string(dcm.get('PatientName').family_name.split(' '))
-                if len(name) == 2:
-                    first = name[0]
-                    last = name[1]
-                    metadata['session']['subject']['lastname'] = str(last)
-                    metadata['session']['subject']['firstname'] = str(first)
+            if dcm.get('PatientName').given_name:
+                metadata['session']['subject']['firstname'] = str(format_string(dcm.get('PatientName').given_name))
+                if not dcm.get('PatientName').family_name:
+                    name = format_string(dcm.get('PatientName').given_name.split(' '))
+                    if len(name) == 2:
+                        first = name[0]
+                        last = name[1]
+                        metadata['session']['subject']['lastname'] = str(last)
+                        metadata['session']['subject']['firstname'] = str(first)
+            if dcm.get('PatientName').family_name:
+                metadata['session']['subject']['lastname'] = str(format_string(dcm.get('PatientName').family_name))
+                if not dcm.get('PatientName').given_name:
+                    name = format_string(dcm.get('PatientName').family_name.split(' '))
+                    if len(name) == 2:
+                        first = name[0]
+                        last = name[1]
+                        metadata['session']['subject']['lastname'] = str(last)
+                        metadata['session']['subject']['firstname'] = str(first)
 
     # File metadata
     pydicom_file = {}
