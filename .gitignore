@@ -6,3 +6,5 @@ notebooks/error.log.json
 notebooks/A.zip
 output
 __pycache__
+.coverage
+.htmlcov
