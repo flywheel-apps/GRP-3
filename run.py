@@ -11,7 +11,6 @@ import tzlocal
 import logging
 import zipfile
 import datetime
-import shutil
 import argparse
 import nibabel
 import pandas as pd
