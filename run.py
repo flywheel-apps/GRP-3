@@ -4,6 +4,7 @@ import os
 import re
 import json
 import jsonschema
+import pathlib
 import pytz
 import pydicom
 import string
@@ -17,12 +18,18 @@ import pandas as pd
 import numpy as np
 from fnmatch import fnmatch
 from pprint import pprint
+import tempfile
 
 from utils.dicom import dicom_archive
 
 logging.basicConfig()
 log = logging.getLogger('grp-3')
 log.setLevel('INFO')
+
+
+def validate_dicom(path):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        dicom_archive.DicomArchive(zip_path=path, extract_dir=temp_dir)
 
 
 def get_session_label(dcm):
@@ -400,14 +407,15 @@ def check_missing_slices(df, this_sequence):
         return slice_error_list
 
     ## Attempt to find locations via SliceLocation header
-    if (('SliceLocation' in df) and ('ImageType' in df)) and True:
+    if all(elem in ['SliceLocation',  'ImageType'] for elem in df.columns):
         df = df.dropna(subset=['SliceLocation', 'ImageType'])
         # This line iterates through all SliceLocations in rows where LOCALIZER not in ImageType
         for location in (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['SliceLocation']:
             locations.append(location)
 
     ## Attempt to find locations by ImageOrientationPatient and ImagePositionPatient headers
-    elif 'ImageOrientationPatient' and 'ImagePositionPatient' and 'ImageType' in df.columns:
+    elif all(elem in ['ImageOrientationPatient', 'ImagePositionPatient', 'ImageType'] for elem in df.columns):
+
         # DICOM headers annoyingly hold arrays as strings with puncuation
         # This function is needed to turn that string into a real data structure
         def string_to_array(input_str, expected_length):
@@ -537,7 +545,7 @@ def validate_against_rules(df):
         if df['InstanceNumber'].is_unique:
             pass
         else:
-            duplicated_values = df.loc[df['InstanceNumber'].duplicated(),'InstanceNumber'].values
+            duplicated_values = df.loc[df['InstanceNumber'].duplicated(), 'InstanceNumber'].values
             error_dict = {
                 "error_message": "InstanceNumber is duplicated for values:{}".format(duplicated_values),
                 "revalidate": False
@@ -559,7 +567,7 @@ def dicom_date_handler(dcm):
 
 
 def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
-
+    dcm = None
     # Extract the last file in the zip to /tmp/ and read it
     if zipfile.is_zipfile(zip_file_path):
         dcm_list = []
@@ -584,7 +592,8 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
                     pass
             else:
                 log.warning('%s does not exist!' % dcm_path)
-        dcm = dcm_list[-1]
+        if dcm_list:
+            dcm = dcm_list[-1]
     else:
         log.info('Not a zip. Attempting to read %s directly' % os.path.basename(zip_file_path))
         dcm = pydicom.read_file(zip_file_path, force=force)
@@ -768,6 +777,8 @@ if __name__ == '__main__':
     dicom_filepath = config['inputs']['dicom']['location']['path']
     dicom_name = config['inputs']['dicom']['location']['name']
 
+    # Check that input is DICOM
+    validate_dicom(dicom_filepath)
     # Set template json filepath (if provided)
     if config['inputs'].get('json_template'):
         template_filepath = config['inputs']['json_template']['location']['path']

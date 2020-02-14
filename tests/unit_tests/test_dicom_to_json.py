@@ -43,3 +43,4 @@ def test_get_seq_data():
     dcm['DimensionIndexSequence'][0].add_new(dcm['DimensionIndexSequence'].tag, 'SQ', copy.deepcopy(dcm.get('DimensionIndexSequence')))
     res = get_seq_data(dcm.get('DimensionIndexSequence'), [])
     assert 'DimensionOrganizationUID' in res[0]['DimensionIndexSequence'][0]
+
