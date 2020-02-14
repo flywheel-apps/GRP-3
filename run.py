@@ -212,6 +212,15 @@ def format_string(in_string):
 
 
 def get_seq_data(sequence, ignore_keys):
+    """Return list of nested dictionaries matching sequence
+
+    Args:
+        sequence (pydicom.Sequence): A pydicom sequence
+        ignore_keys (list): List of keys to ignore
+
+    Returns:
+        (list): list of nested dictionary matching sequence
+    """
     res = []
     for seq in sequence:
         seq_dict = {}
@@ -233,7 +242,7 @@ def get_seq_data(sequence, ignore_keys):
 
 def get_pydicom_header(dcm):
     # Extract the header values
-    dcm.decode()
+    dcm.decode()   # used for the side effect of loading all dcm tags in memory
     header = {}
     exclude_tags = ['[Unknown]',
                     'PixelData',
@@ -789,6 +798,6 @@ if __name__ == '__main__':
         template.update(import_template)
     json_template = template.copy()
 
-    metadatafile = dicom_to_json(dicom_filepath, output_folder, timezone, json_template, force_dicom_read)
+    metadatafile = dicom_to_json(dicom_filepath, output_folder, timezone, json_template, force=force_dicom_read)
     if os.path.isfile(metadatafile):
         os.sys.exit(0)
