@@ -75,16 +75,22 @@ class DicomFile:
     def __init__(self, file_path, root_path, force=False):
         self.path = file_path
         self.relpath = os.path.relpath(file_path, root_path)
+        filename = os.path.basename(file_path)
         try:
             self.dataset = pydicom.dcmread(file_path, force=force)
+
+        except Exception as e:
+            log.error(f'Exception occurred when reading {filename}: {e}')
+            self.dataset = None
+        try:
             self.header_dict = get_pydicom_header(self.dataset)
         except Exception as e:
-            filename = os.path.basename(file_path)
-            log.error(f'Exception occurred when reading {filename}: {e}')
+            log.error(f'Exception occurred when parsing header for  {filename}: {e}')
+            self.header_dict = None
 
 
 class DicomArchive:
-    def __init__(self, zip_path, extract_dir, dataset_list=False, force=False):
+    def __init__(self, zip_path, extract_dir, dataset_list=False, force=False, validate=True):
         self.path = zip_path
         self.dataset = None
         self.dataset_list = None
@@ -102,6 +108,21 @@ class DicomArchive:
             self.initialize_dataset(dataset_list=dataset_list)
         except Exception as e:
             log.error(f'An exception occurred while parsing {zip_path}: {e}')
+        if validate:
+            self._validate()
+
+    def _validate(self):
+        basename = os.path.basename(self.path)
+        if not os.path.exists(self.path):
+            error_detail = f'File {basename} does not exist! Exiting...'
+            raise FileNotFoundError(error_detail)
+        elif not self.file_list:
+            error_detail = f'No files were found within archive {basename}! Exiting...'
+            raise RuntimeError(error_detail)
+        elif not self.dataset:
+            error_detail = f'failed to parse DICOMs at {basename}. File list: {self.file_list}. Exiting...'
+            raise RuntimeError(error_detail)
+        return None
 
     def initialize_dataset(self, dataset_list=False):
         if dataset_list:
@@ -111,7 +132,7 @@ class DicomArchive:
                 with zipfile.ZipFile(self.path) as zipf:
                     extract_path = zipf.extract(fp, self.extract_dir)
                     if os.path.isfile(extract_path):
-                        dicom_file = DicomFile(extract_path, self.extract_dir, self.force)
+                        dicom_file = DicomFile(extract_path, self.extract_dir, force=self.force)
                         file_dataset = dicom_file.dataset
                         if file_dataset:
                             # Here we check for the Raw Data Storage SOP Class, if there
