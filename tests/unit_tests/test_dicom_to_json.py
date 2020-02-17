@@ -18,7 +18,7 @@ def test_dicom_to_json_no_patientname():
         temp_path = os.path.join(tempdir, os.path.basename(test_dicom_path))
         dcm.save_as(temp_path)
 
-        metadata_path = dicom_to_json(temp_path, tempdir, time_zone, {})
+        metadata_path = dicom_to_json(zip_file_path=temp_path, outbase=tempdir, timezone=time_zone, json_template={})
         assert os.path.isfile(metadata_path)
 
 
