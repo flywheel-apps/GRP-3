@@ -259,6 +259,7 @@ def get_pydicom_header(dcm):
                     '[Histogram tables]',
                     '[Unique image iden]',
                     'ContourData',
+                    'EncryptedAttributesSequence'
                     ]
     tags = dcm.dir()
     for tag in tags:
