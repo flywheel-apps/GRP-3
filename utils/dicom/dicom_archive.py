@@ -14,6 +14,8 @@ from .dicom_metadata import get_pydicom_header
 
 log = logging.getLogger(__name__)
 
+TOLERANCE_ON_ImageOrientationPatient = 3
+
 
 @contextlib.contextmanager
 def make_temp_directory():
@@ -177,7 +179,10 @@ class DicomArchive:
             tag_value = dicom_file.header_dict.get(dicom_tag)
             if tag_value:
                 if type(tag_value) == list:
-                    tag_value_key = tuple(tag_value)
+                    if dicom_tag == 'ImageOrientationPatient':  # rounding a little to avoid dropping images
+                        tag_value_key = tuple(map(lambda x: round(x, TOLERANCE_ON_ImageOrientationPatient), tag_value))
+                    else:
+                        tag_value_key = tuple(tag_value)
                 else:
                     tag_value_key = tag_value
             else:
@@ -201,16 +206,27 @@ class DicomArchive:
             if tag_value == top_value:
                 out_path = os.path.join(output_dir, os.path.basename(self.path))
                 create_zip_from_file_list(self.extract_dir, image_paths, out_path)
-                if not all_unique:
-                    out_path = append_str_to_dcm_zip_path(out_path, append_str)
+                if len(tag_dict.keys()) == 2 and not all_unique:
                     other_image_paths = [dcm.path for dcm in self.dataset_list if dcm.path not in image_paths]
+                    if not append_str:
+                        dcm = pydicom.dcmread(other_image_paths[0])
+                        app_str = f'_{dcm.Modality}-{dcm.SeriesNumber}-{dcm.SeriesDescription.replace(" ", "_")}'
+                    else:
+                        app_str = append_str
+                    out_path = append_str_to_dcm_zip_path(out_path, app_str)
+                    log.info('Creating {out_path}...')
                     create_zip_from_file_list(self.extract_dir, other_image_paths, out_path)
-            elif len(tag_dict.keys()) > 2 and all_unique:
-
-                tmp_append_str = append_str + str(index)
-                index += 1
+            elif len(tag_dict.keys()) >= 2 and all_unique:
+                if not append_str:
+                    dcm = pydicom.dcmread(image_paths[0])
+                    tmp_append_str = f'_{dcm.Modality}-{dcm.SeriesNumber}-{dcm.SeriesDescription.replace(" ", "_")}'
+                else:
+                    app_str = append_str
+                    tmp_append_str = app_str + str(index)
+                    index += 1
                 basename = append_str_to_dcm_zip_path(os.path.basename(self.path), tmp_append_str)
                 out_path = os.path.join(output_dir, basename)
+                log.info('Creating {out_path}...')
                 create_zip_from_file_list(self.extract_dir, image_paths, out_path)
             else:
                 continue
@@ -230,6 +246,17 @@ class DicomArchive:
             if (nunique_iop / image_count) < 0.20:
                 embedded_localizer = True
         return embedded_localizer
+
+    def contains_different_seriesinstanceUID(self):
+        different_siuid = False
+        siuid_value_list = self.dicom_tag_value_list('SeriesInstanceUID')
+        # Convert to list of tuples so it's hashable for set
+        siuid_tuple_list = make_list_items_hashable(siuid_value_list)
+        m_tuple_set = set(siuid_tuple_list)
+        nunique_iop = len(m_tuple_set)
+        if nunique_iop > 1:
+            different_siuid = True
+        return different_siuid
 
     def select_files_by_tag_value(self, dicom_tag, value):
         if not self.dataset_list:
