@@ -36,7 +36,7 @@
   },
   "config": {
     "split_on_SeriesUID": {
-      "default": false,
+      "default": true,
       "type": "boolean",
       "description": "If true and DICOM archive contains multiple SeriesInstanceUID, the archive will be split in individual series"
     },
@@ -48,7 +48,7 @@
     "force_dicom_read": {
       "description": "Force pydicom to read the input file. This option allows files that do not adhere to the DICOM standard to be read and parsed. (Default=False)",
       "type": "boolean",
-      "default": false
+      "default": true
     }
   },
   "environment": {},
