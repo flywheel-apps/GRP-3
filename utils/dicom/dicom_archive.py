@@ -15,6 +15,7 @@ from .dicom_metadata import get_pydicom_header
 log = logging.getLogger(__name__)
 
 TOLERANCE_ON_ImageOrientationPatient = 3
+SERIES_DESCRIPTION_SANITIZER = r'[^A-Za-z0-9\+]+'
 
 
 @contextlib.contextmanager
@@ -210,7 +211,8 @@ class DicomArchive:
                     other_image_paths = [dcm.path for dcm in self.dataset_list if dcm.path not in image_paths]
                     if not append_str:
                         dcm = pydicom.dcmread(other_image_paths[0])
-                        app_str = f'_{dcm.Modality}-{dcm.SeriesNumber}-{dcm.SeriesDescription.replace(" ", "_")}'
+                        sd_safe = re.sub(SERIES_DESCRIPTION_SANITIZER, '_', dcm.SeriesDescription)
+                        app_str = f'_{dcm.Modality}-{dcm.SeriesNumber}-{sd_safe}'
                     else:
                         app_str = append_str
                     out_path = append_str_to_dcm_zip_path(out_path, app_str)
@@ -219,7 +221,8 @@ class DicomArchive:
             elif len(tag_dict.keys()) >= 2 and all_unique:
                 if not append_str:
                     dcm = pydicom.dcmread(image_paths[0])
-                    tmp_append_str = f'_{dcm.Modality}-{dcm.SeriesNumber}-{dcm.SeriesDescription.replace(" ", "_")}'
+                    sd_safe = re.sub(SERIES_DESCRIPTION_SANITIZER, '_', dcm.SeriesDescription)
+                    tmp_append_str = f'_{dcm.Modality}-{dcm.SeriesNumber}-{sd_safe}'
                 else:
                     app_str = append_str
                     tmp_append_str = app_str + str(index)
