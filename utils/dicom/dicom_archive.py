@@ -236,6 +236,12 @@ class DicomArchive:
         iop_value_list = self.dicom_tag_value_list('ImageOrientationPatient')
         # Convert to list of tuples so it's hashable for set
         iop_tuple_list = make_list_items_hashable(iop_value_list)
+
+        # apply some rounding
+        def apply_rounding(t):
+            return tuple(map(lambda x: round(float(x), TOLERANCE_ON_ImageOrientationPatient), t))
+        iop_tuple_list = list(map(apply_rounding, iop_tuple_list))
+
         image_count = len(iop_tuple_list)
         iop_tuple_set = set(iop_tuple_list)
         nunique_iop = len(iop_tuple_set)
