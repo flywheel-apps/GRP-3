@@ -760,6 +760,24 @@ def split_embedded_localizer(dcm_archive_path, output_dir, force=False):
             os.sys.exit(0)
 
 
+def split_seriesinstanceUID(dcm_archive_path, output_dir, force=False):
+    with dicom_archive.make_temp_directory() as tmp_dir:
+        dcm_archive_obj = dicom_archive.DicomArchive(dcm_archive_path, tmp_dir, dataset_list=True, force=force)
+        if dcm_archive_obj.contains_different_seriesinstanceUID():
+            log.info('Splitting embedded Series...')
+            dcm_archive_obj.split_archive_on_unique_tag(
+                'SeriesInstanceUID',
+                output_dir,
+                '',
+                all_unique=True
+            )
+            # Exit - gear rule should pick up new files and extract+Validate
+            log.info(
+                'SeriesInstanceUID split! Please run this gear on the output dicom archives if a gear rule is not set!'
+            )
+            os.sys.exit(0)
+
+
 if __name__ == '__main__':
     # Set paths
     input_folder = '/flywheel/v0/input/file/'
@@ -773,6 +791,7 @@ if __name__ == '__main__':
 
     # Get config values
     split_localizer = config['config']['split_localizer']
+    split_on_seriesuid = config['config']['split_on_SeriesUID']
     force_dicom_read = config['config']['force_dicom_read']
     # Set dicom path and name from config file
     dicom_filepath = config['inputs']['dicom']['location']['path']
@@ -788,6 +807,13 @@ if __name__ == '__main__':
 
     # Determine the level from which the gear was invoked
     hierarchy_level = config['inputs']['dicom']['hierarchy']['type']
+
+    # Split seriesinstanceUID
+    if split_on_seriesuid:
+        try:
+            split_seriesinstanceUID(dicom_filepath, output_folder, force_dicom_read)
+        except Exception as err:
+            log.error('split_seriesinstanceUID failed! err={}'.format(err), exc_info=True)
 
     # Split embedded localizers if configured to do so and if the
     # Dicom archive is a series that contains an embedded localizer
