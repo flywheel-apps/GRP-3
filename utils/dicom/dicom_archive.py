@@ -240,7 +240,11 @@ class DicomArchive:
         # Convert to list of tuples so it's hashable for set
         iop_tuple_list = make_list_items_hashable(iop_value_list)
 
-        # apply some rounding
+        # Apply some rounding
+        # NOTE: It has been observed that, in some series, ImageOrientationPatient might be
+        # slightly varying between slices even though the patient orientation remains the same (uncertain root cause).
+        # If strictly splitting on ImageOrientationPatient "uniqueness" it leads in wrongly creating multiple series.
+        # Applying a certain rounding threshold fixes this issue.
         def apply_rounding(t):
             return tuple(map(lambda x: round(float(x), TOLERANCE_ON_ImageOrientationPatient), t))
         iop_tuple_list = list(map(apply_rounding, iop_tuple_list))
@@ -265,6 +269,7 @@ class DicomArchive:
         nunique_iop = len(m_tuple_set)
         if nunique_iop > 1:
             different_siuid = True
+            log.warning('Multiple () SeriesInstanceUID found in archive')
         return different_siuid
 
     def select_files_by_tag_value(self, dicom_tag, value):

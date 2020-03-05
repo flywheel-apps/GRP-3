@@ -48,7 +48,7 @@
     "force_dicom_read": {
       "description": "Force pydicom to read the input file. This option allows files that do not adhere to the DICOM standard to be read and parsed. (Default=False)",
       "type": "boolean",
-      "default": true
+      "default": false
     }
   },
   "environment": {},
