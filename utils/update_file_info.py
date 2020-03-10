@@ -135,7 +135,7 @@ def update_file_metadata(fw_file_dict, metadata_dict, parent_type):
     if fw_file_dict.get('name'):
         file_index, meta_file_dict = get_meta_file_dict_and_index(metadata_dict, fw_file_dict['name'], parent_type)
         updated_file_dict = update_meta_file_dict(meta_file_dict, fw_file_dict)
-        updated_metadata_dict = replace_metadata_file_dict(metadata_dict, file_index, updated_file_dict)
+        updated_metadata_dict = replace_metadata_file_dict(metadata_dict, file_index, updated_file_dict,parent_type)
         return updated_metadata_dict
     else:
         return metadata_dict
@@ -156,7 +156,7 @@ def update_metadata_json(fw_file_dict, metadata_json_path, parent_type):
 
 def get_file_dict_and_update_metadata_json(input_key, metadata_json_path):
     """
-    writes 
+    updates file metadata in the metadata_json_path with that from flywheel
     :param input_key:
     :param metadata_json_path:
     :return:
