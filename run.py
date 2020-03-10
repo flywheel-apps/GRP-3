@@ -21,6 +21,7 @@ from pprint import pprint
 import tempfile
 
 from utils.dicom import dicom_archive
+from utils.update_file_info import get_file_dict_and_update_metadata_json
 
 logging.basicConfig()
 log = logging.getLogger('grp-3')
@@ -812,6 +813,7 @@ if __name__ == '__main__':
     if split_on_seriesuid:
         try:
             split_seriesinstanceUID(dicom_filepath, output_folder, force_dicom_read)
+            get_file_dict_and_update_metadata_json('dicom', output_filepath)
         except Exception as err:
             log.error('split_seriesinstanceUID failed! err={}'.format(err), exc_info=True)
 
@@ -820,6 +822,7 @@ if __name__ == '__main__':
     if split_localizer:
         try:
             split_embedded_localizer(dicom_filepath, output_folder, force_dicom_read)
+            get_file_dict_and_update_metadata_json('dicom', output_filepath)
         except Exception as err:
             log.error('split_embedded_localizer failed! err={}'.format(err), exc_info=True)
 
@@ -837,5 +840,6 @@ if __name__ == '__main__':
     json_template = template.copy()
 
     metadatafile = dicom_to_json(dicom_filepath, output_folder, timezone, json_template, force=force_dicom_read)
+    get_file_dict_and_update_metadata_json('dicom', metadatafile)
     if os.path.isfile(metadatafile):
         os.sys.exit(0)
