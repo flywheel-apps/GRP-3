@@ -9,6 +9,7 @@ import flywheel
 WHITELIST_KEYS = ('classification', 'info', 'modality', 'type', 'name')
 
 log = logging.getLogger(__name__)
+log.setLevel('INFO')
 
 
 def false_if_exc_is_timeout(exception):
@@ -40,7 +41,7 @@ def get_dest_cont_file_dict(input_key):
         parent_id = gear_context.get_input(input_key).get('hierarchy', {}).get('id')
         parent_type = gear_context.get_input(input_key).get('hierarchy', {}).get('type')
         if parent_id == 'aex':
-            parent_id = '5e66bbaa529e160945812d92'
+            parent_id = '5e6937e3529e160bd3812da1'
         if not file_name:
             file_dict = dict()
         else:
@@ -86,7 +87,7 @@ def get_meta_file_dict_and_index(metadata_dict, file_name, parent_type):
             for index, file_item in enumerate(metadata_dict[parent_type]['files']):
                 if isinstance(file_item, dict):
                     if file_item.get('name') == file_name:
-                        file_dict = file_item
+                        file_dict = copy.deepcopy(file_item)
                         file_index = index
     return file_index, file_dict
 
@@ -125,9 +126,10 @@ def replace_metadata_file_dict(metadata_dict, index, meta_file_dict, parent_type
     metadata_dict = copy.deepcopy(metadata_dict)
     metadata_dict[parent_type] = metadata_dict.get(parent_type, {})
     metadata_dict[parent_type]['files'] = metadata_dict[parent_type].get('files', list())
-    if not index or len(metadata_dict[parent_type]['files']) <= index:
+    if index is None or len(metadata_dict[parent_type]['files']) <= index:
         metadata_dict[parent_type]['files'].append(meta_file_dict)
     else:
+
         metadata_dict[parent_type]['files'][index] = meta_file_dict
     return metadata_dict
 
@@ -142,8 +144,9 @@ def update_file_metadata(fw_file_dict, metadata_dict, parent_type):
     """
     if fw_file_dict.get('name'):
         file_index, meta_file_dict = get_meta_file_dict_and_index(metadata_dict, fw_file_dict['name'], parent_type)
+        fw_file_dict = get_file_update_dict(fw_file_dict)
         updated_file_dict = update_meta_file_dict(meta_file_dict, fw_file_dict)
-        updated_metadata_dict = replace_metadata_file_dict(metadata_dict, file_index, updated_file_dict,parent_type)
+        updated_metadata_dict = replace_metadata_file_dict(metadata_dict, file_index, updated_file_dict, parent_type)
         return updated_metadata_dict
     else:
         return metadata_dict
@@ -164,7 +167,10 @@ def update_metadata_json(fw_file_dict, metadata_json_path, parent_type):
             metadata_dict = json.load(metadata_data)
     if isinstance(fw_file_dict, dict):
         updated_metadata_dict = update_file_metadata(fw_file_dict, metadata_dict, parent_type)
+
         if updated_metadata_dict:
+            print_string = json.dumps(updated_metadata_dict, separators=(', ', ': '), sort_keys=True, indent=4)
+            log.info('Updated .metadata.json: \n%s', print_string)
             with open(metadata_json_path, 'w') as metafile:
                 json.dump(updated_metadata_dict, metafile, separators=(', ', ': '), sort_keys=True, indent=4)
 

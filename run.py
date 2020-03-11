@@ -734,11 +734,10 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
 
     # Write out the metadata to file (.metadata.json)
     metafile_outname = os.path.join(os.path.dirname(outbase), '.metadata.json')
+    print_string = json.dumps(metadata, separators=(', ', ': '), sort_keys=True, indent=4)
+    log.info('DICOM .metadata.json: \n%s\n', print_string)
     with open(metafile_outname, 'w') as metafile:
         json.dump(metadata, metafile, separators=(', ', ': '), sort_keys=True, indent=4)
-
-    # Show the metadata
-    pprint(metadata)
 
     return metafile_outname
 
@@ -758,6 +757,7 @@ def split_embedded_localizer(dcm_archive_path, output_dir, force=False):
             log.info(
                 'Embedded localizer split! Please run this gear on the output dicom archives if a gear rule is not set!'
             )
+            get_file_dict_and_update_metadata_json('dicom', output_filepath)
             os.sys.exit(0)
 
 
@@ -776,6 +776,7 @@ def split_seriesinstanceUID(dcm_archive_path, output_dir, force=False):
             log.info(
                 'SeriesInstanceUID split! Please run this gear on the output dicom archives if a gear rule is not set!'
             )
+            get_file_dict_and_update_metadata_json('dicom', output_filepath)
             os.sys.exit(0)
 
 
@@ -813,7 +814,7 @@ if __name__ == '__main__':
     if split_on_seriesuid:
         try:
             split_seriesinstanceUID(dicom_filepath, output_folder, force_dicom_read)
-            get_file_dict_and_update_metadata_json('dicom', output_filepath)
+
         except Exception as err:
             log.error('split_seriesinstanceUID failed! err={}'.format(err), exc_info=True)
 
@@ -822,7 +823,7 @@ if __name__ == '__main__':
     if split_localizer:
         try:
             split_embedded_localizer(dicom_filepath, output_folder, force_dicom_read)
-            get_file_dict_and_update_metadata_json('dicom', output_filepath)
+
         except Exception as err:
             log.error('split_embedded_localizer failed! err={}'.format(err), exc_info=True)
 
