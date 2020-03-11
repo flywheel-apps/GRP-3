@@ -239,6 +239,11 @@ class DicomArchive:
         iop_value_list = self.dicom_tag_value_list('ImageOrientationPatient')
         # Convert to list of tuples so it's hashable for set
         iop_tuple_list = make_list_items_hashable(iop_value_list)
+        iop_tuple_list = [x for x in iop_tuple_list if x]   # removing None
+        if not iop_tuple_list:
+            log.warning('Dicom ImageOrientationPatient tag missing, skipping localizer splitting')
+            return embedded_localizer
+
 
         # Apply some rounding
         # NOTE: It has been observed that, in some series, ImageOrientationPatient might be
