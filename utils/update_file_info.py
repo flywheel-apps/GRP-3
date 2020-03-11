@@ -74,8 +74,9 @@ def get_file_update_dict(fw_file_dict):
 
 def get_meta_file_dict_and_index(metadata_dict, file_name, parent_type):
     """
-    Returns a tuple of the acquisition.files list index for the file named file_name
-    if a dictionary for file_name exists within acquisition.files
+    Returns a tuple of the parent_type.files list index for the file named file_name
+    if a dictionary for file_name exists within parent_type.files. The index is set to None if
+    the file does not yet exist in the parent metadata.
     """
 
     file_index = None
