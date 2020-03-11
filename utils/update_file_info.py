@@ -6,7 +6,7 @@ import os
 import backoff
 import flywheel
 
-WHITELIST_KEYS = ('classification', 'info', 'modality', 'type')
+WHITELIST_KEYS = ('classification', 'info', 'modality', 'type', 'name')
 
 log = logging.getLogger(__name__)
 
@@ -132,6 +132,13 @@ def replace_metadata_file_dict(metadata_dict, index, meta_file_dict, parent_type
 
 
 def update_file_metadata(fw_file_dict, metadata_dict, parent_type):
+    """
+    updates the metadata.json dictionary with the file information retrieved from the SDK
+    :param fw_file_dict: the dictionary representation of the flywheel file object
+    :param metadata_dict: the dictionary representation of .metadata.json
+    :param parent_type: container type of the file's parent
+    :return:
+    """
     if fw_file_dict.get('name'):
         file_index, meta_file_dict = get_meta_file_dict_and_index(metadata_dict, fw_file_dict['name'], parent_type)
         updated_file_dict = update_meta_file_dict(meta_file_dict, fw_file_dict)
@@ -142,6 +149,13 @@ def update_file_metadata(fw_file_dict, metadata_dict, parent_type):
 
 
 def update_metadata_json(fw_file_dict, metadata_json_path, parent_type):
+    """
+    updates the metadata.json file with the file metadata dict (fw_file_dict) retrieved from flywheel
+    :param fw_file_dict:  file metadata dict (fw_file_dict) retrieved from flywheel
+    :param metadata_json_path: path to the .metadata.json file
+    :param parent_type: type of the file parent container
+    :return:
+    """
     if not os.path.exists(metadata_json_path):
         metadata_dict = dict()
     else:
@@ -157,8 +171,8 @@ def update_metadata_json(fw_file_dict, metadata_json_path, parent_type):
 def get_file_dict_and_update_metadata_json(input_key, metadata_json_path):
     """
     updates file metadata in the metadata_json_path with that from flywheel
-    :param input_key:
-    :param metadata_json_path:
+    :param input_key: the key under which the file is represented in manifest.json
+    :param metadata_json_path: the path the the metadata.json file to be uploaded to flywheel
     :return:
     """
     file_dict, parent_type = get_dest_cont_file_dict(input_key)

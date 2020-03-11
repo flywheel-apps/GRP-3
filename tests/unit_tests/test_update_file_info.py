@@ -1,7 +1,10 @@
 import copy
+import json
+import tempfile
+import os
 
 from utils.update_file_info import get_meta_file_dict_and_index, update_meta_file_dict, get_file_update_dict, \
-    replace_metadata_file_dict
+    replace_metadata_file_dict, update_metadata_json
 
 
 METADATA_DICT = {
@@ -32,6 +35,7 @@ FW_FILE_DICT = {
 
 def test_get_file_update_dict():
     expected_dict = {
+        'name': 'test.dicom.zip',
         'modality': 'CT',
         'type': 'dicom',
         'info': {
@@ -97,3 +101,40 @@ def test_replace_metadata_file_dict():
     }
     result = replace_metadata_file_dict(METADATA_DICT, index, meta_file_dict, parent_type)
     assert sorted(result) == sorted(expected)
+
+
+def test_update_metadata_json():
+    _, temp_path = tempfile.mkstemp()
+    with open(temp_path, 'w') as tempw:
+        json.dump({}, tempw)
+
+    expected = {
+        'session': {
+            'files': [
+                {
+                    'name': 'test.dicom.zip',
+                    'type': 'dicom',
+                    'modality': 'CT',
+                    'info': {
+                        'export': {
+                            'origin_id': 'test_id'
+                        }
+                    }
+                }
+            ]
+        }
+    }
+    update_metadata_json(FW_FILE_DICT, temp_path, 'session')
+    with open(temp_path, 'r') as file_obj:
+        result = json.load(file_obj)
+    assert expected == result
+
+    # test non-existent
+    with tempfile.TemporaryDirectory() as tempd:
+        path = os.path.join(tempd, '.metadata.json')
+        expected['subject'] = expected.pop('session')
+        update_metadata_json(FW_FILE_DICT, path, 'subject')
+        with open(path, 'r') as file_obj:
+            result = json.load(file_obj)
+
+        assert expected == result
