@@ -6,7 +6,7 @@ import copy
 
 from pydicom.data import get_testdata_files
 
-from run import dicom_to_json, validate_timezone, get_seq_data
+from run import dicom_to_json, validate_timezone, get_seq_data, walk_dicom
 
 
 def test_dicom_to_json_no_patientname():
@@ -38,8 +38,8 @@ def test_get_seq_data():
 
     # testing recursivity
     dcm = pydicom.read_file(test_dicom_path)
-    dcm.decode()
-    sequence = pydicom.Sequence()
+    errors = walk_dicom(dcm)
+    assert errors == []
     dcm['DimensionIndexSequence'][0].add_new(dcm['DimensionIndexSequence'].tag, 'SQ', copy.deepcopy(dcm.get('DimensionIndexSequence')))
     res = get_seq_data(dcm.get('DimensionIndexSequence'), [])
     assert 'DimensionOrganizationUID' in res[0]['DimensionIndexSequence'][0]

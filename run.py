@@ -12,6 +12,7 @@ import tzlocal
 import logging
 import zipfile
 import datetime
+import traceback
 import argparse
 import nibabel
 import pandas as pd
@@ -248,9 +249,30 @@ def get_seq_data(sequence, ignore_keys):
     return res
 
 
+def walk_dicom(dcm):
+    taglist = sorted(dcm._dict.keys())
+    errors = []
+    for tag in taglist:
+        try:
+            data_element = dcm[tag]
+            if tag in dcm and data_element.VR == "SQ":
+                sequence = data_element.value
+                for dataset in sequence:
+                    walk_dicom(dataset)
+        except Exception as ex:
+            msg = f'With tag {tag} got exception: {str(ex)}'
+            errors.append(msg)
+    return errors
+
+
 def get_pydicom_header(dcm):
     # Extract the header values
-    dcm.decode()   # used for the side effect of loading all dcm tags in memory
+    errors = walk_dicom(dcm)   # used to load all dcm tags in memory
+    if errors:
+        result = ''
+        for error in errors:
+            result += '\n  {}'.format(error)
+        log.warning(f'Errors found in walking dicom: {result}')
     header = {}
     exclude_tags = ['[Unknown]',
                     'PixelData',
