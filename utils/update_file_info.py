@@ -108,7 +108,7 @@ def update_meta_file_dict(meta_file_dict, fw_file_dict):
             meta_file_dict[key] = fw_file_dict[key]
     for key, value in fw_file_dict['info'].items():
         if not meta_file_dict['info'].get(key):
-            meta_file_dict['info'] = value
+            meta_file_dict['info'][key] = copy.deepcopy(value)
 
     return meta_file_dict
 

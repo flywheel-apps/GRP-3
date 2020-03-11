@@ -13,7 +13,11 @@ METADATA_DICT = {
             {
                 'name': 'test.dicom.zip',
                 'modality': 'MR',
-                'info': {}
+                'info': {'header': {
+                    'dicom': {
+                        'Modality': 'MR'
+                    }
+                }}
             }
         ]
     }
@@ -56,13 +60,18 @@ def test_get_meta_file_dict_and_index():
 def test_update_meta_file_dict():
     idx, meta_file_dict = get_meta_file_dict_and_index(METADATA_DICT, FW_FILE_DICT.get('name'),
                                                        'acquisition')
-    print(meta_file_dict)
-    updated_dict = update_meta_file_dict(meta_file_dict, FW_FILE_DICT)
+    fw_file_dict = get_file_update_dict(FW_FILE_DICT)
+    updated_dict = update_meta_file_dict(meta_file_dict, fw_file_dict)
     expected_dict = {
         'name': 'test.dicom.zip',
         'modality': 'MR',
         'type': 'dicom',
         'info': {
+            'header': {
+                'dicom': {
+                    'Modality': 'MR'
+                }
+            },
             'export': {
                 'origin_id': 'test_id'
             }
