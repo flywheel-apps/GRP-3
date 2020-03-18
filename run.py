@@ -865,9 +865,8 @@ if __name__ == '__main__':
     json_template = template.copy()
 
     metadatafile = dicom_to_json(dicom_filepath, output_folder, timezone, json_template, force=force_dicom_read)
-    try:
-        get_file_dict_and_update_metadata_json('dicom', metadatafile)
-    except:
-        pass
+
+    get_file_dict_and_update_metadata_json('dicom', metadatafile)
+
     if os.path.isfile(metadatafile):
         os.sys.exit(0)
