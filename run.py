@@ -332,6 +332,39 @@ def get_csa_header(dcm):
     return header
 
 
+def get_validation_error_dict(validation_error, file_dict_key='info.header.dicom'):
+    """
+    Generates a validation error dictionary to be appended to error list.
+    Error list is consumed by GRP-2
+
+    :param file_dict_key: period-delimited string denoting where the field that failed validation
+        is located on the flywheel file object. default = info.header.dicom
+    :type file_dict_key: str
+    :param validation_error: error generated when validating dictionary against template
+    :type validation_error: jsonschema.exceptions.ValidationError
+    :return:
+    """
+    error_dict = {
+        'error_type': validation_error.validator,
+        'error_message': validation_error.message,
+        'schema': validation_error.schema,
+        'item': None,
+        'error_value': None,
+        'revalidate': True
+    }
+    if validation_error.absolute_path:
+        # validation_error.absolute_path is a deque that represents the path to the field within the dict
+        item_deque = validation_error.absolute_path.copy()
+        item_deque.appendleft(file_dict_key)
+        # item is a period - delimited path to the field violating the template on the file object
+        error_dict['item'] = '.'.join([str(item) for item in item_deque])
+        error_dict['error_value'] = validation_error.instance
+    else:
+        error_dict['item'] = file_dict_key
+
+    return error_dict
+
+
 def validate_against_template(input_dict, template):
     """
     This is a function for validating a dictionary against a template. Given
@@ -359,35 +392,9 @@ def validate_against_template(input_dict, template):
     # Initialize list object for storing validation errors
     validation_errors = []
     for error in sorted(validator.iter_errors(input_dict), key=str):
-        # Create a temporary dictionary for the individual error
-        tmp_dict = {}
-        # Get error type
-        tmp_dict['error_type'] = error.validator
-        # Get error message and log it
-        tmp_dict['error_message'] = error.message
-        log.error(error.message)
-        # Required field errors are a little special and need to be handled
-        # separately to get the field. We don't get the schema because it
-        # will print the entire template schema
-        if error.validator == "required":
-            # Get the item failing validation from the error message
-            tmp_dict['item'] = 'info.' + error.message.split("'")[1]
-        # Get additional information for pattern and type errors
-        elif error.validator in ("pattern", "type"):
-            # Get the value of the field that failed validation
-            tmp_dict['error_value'] = error.instance
-            # Get the field that failed validation
-            tmp_dict['item'] = 'info.header.dicom.' + str(error.path.pop())
-            # Get the schema object used to validate in failed validation
-            tmp_dict['schema'] = error.schema
-        elif error.validator == "anyOf":
-            tmp_dict['schema'] = {"anyOf": error.schema['anyOf']}
-        else:
-            pass
-        # revalidate key so that validation errors can be revalidated in the future
-        tmp_dict['revalidate'] = True
+        error_dict = get_validation_error_dict(error)
         # Append individual error object to the return validation_errors object
-        validation_errors.append(tmp_dict)
+        validation_errors.append(error_dict)
 
     return validation_errors
 
@@ -858,6 +865,8 @@ if __name__ == '__main__':
     json_template = template.copy()
 
     metadatafile = dicom_to_json(dicom_filepath, output_folder, timezone, json_template, force=force_dicom_read)
+
     get_file_dict_and_update_metadata_json('dicom', metadatafile)
+
     if os.path.isfile(metadatafile):
         os.sys.exit(0)
