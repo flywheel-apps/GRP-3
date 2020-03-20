@@ -27,13 +27,12 @@ def test_get_validation_error_dict_enum():
     expected_dict = {
         'error_message': "'NM' is not one of ['CT', 'PT', 'MR']",
          'error_type': 'enum',
-         'error_value': None,
+         'error_value': 'NM',
          'item': 'info.header.dicom.Modality',
          'revalidate': True,
          'schema': {'description': "Modality must match 'MR' or 'CT' or 'PT'",
                     'enum': ['CT', 'PT', 'MR'],
-                    'type': 'string'},
-         'value': 'NM'
+                    'type': 'string'}
     }
     error_dict = get_validation_error_dict(test_error)
     assert error_dict == expected_dict
