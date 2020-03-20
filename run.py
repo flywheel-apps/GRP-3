@@ -358,7 +358,7 @@ def get_validation_error_dict(validation_error, file_dict_key='info.header.dicom
         item_deque.appendleft(file_dict_key)
         # item is a period - delimited path to the field violating the template on the file object
         error_dict['item'] = '.'.join([str(item) for item in item_deque])
-        error_dict['value'] = validation_error.instance
+        error_dict['error_value'] = validation_error.instance
     else:
         error_dict['item'] = file_dict_key
 
