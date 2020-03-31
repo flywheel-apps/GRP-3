@@ -658,7 +658,12 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
     if session_label:
         metadata['session']['label'] = session_label
     if hasattr(dcm, 'PatientWeight') and dcm.get('PatientWeight'):
-        metadata['session']['weight'] = assign_type(dcm.get('PatientWeight'))
+        patient_weight = assign_type(dcm.get('PatientWeight'))
+        if isinstance(patient_weight, (int, float)):  # PatientWeight VR is DS (decimal string)
+            # assign_type manages to cast it to numeric
+            metadata['session']['weight'] = patient_weight
+        else:
+            log.warning('PatientWeight not a numeric (%s). Will not be stored in session metadata.', patient_weight)
 
     # Subject Metadata
     metadata['session']['subject'] = {}
@@ -771,7 +776,7 @@ def split_embedded_localizer(dcm_archive_path, output_dir, force=False):
         dcm_archive_obj = dicom_archive.DicomArchive(dcm_archive_path, tmp_dir, dataset_list=True, force=force)
         if dcm_archive_obj.contains_embedded_localizer():
             log.info('Splitting embedded localizer...')
-            dcm_archive_obj.split_archive_on_unique_tag(
+            dcm_archive_obj.split_archive_on_unique_tag(    
                 'ImageOrientationPatient',
                 output_dir,
                 '_Localizer',
