@@ -658,7 +658,10 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
     if session_label:
         metadata['session']['label'] = session_label
     if hasattr(dcm, 'PatientWeight') and dcm.get('PatientWeight'):
-        metadata['session']['weight'] = assign_type(dcm.get('PatientWeight'))
+        patient_weight = assign_type(dcm.get('PatientWeight'))
+        if not isinstance(patient_weight, str):  # PatientWeight VR is DS (decimal string)
+            # assign_type manages to cast it to numeric
+            metadata['session']['weight'] = patient_weight
 
     # Subject Metadata
     metadata['session']['subject'] = {}
