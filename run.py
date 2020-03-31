@@ -662,6 +662,8 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
         if isinstance(patient_weight, (int, float)):  # PatientWeight VR is DS (decimal string)
             # assign_type manages to cast it to numeric
             metadata['session']['weight'] = patient_weight
+        else:
+            log.warning('PatientWeight not a numeric (%s). Will not be stored in session metadata.', patient_weight)
 
     # Subject Metadata
     metadata['session']['subject'] = {}
