@@ -643,14 +643,16 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
                 try:
                     log.info('reading %s' % dcm_path)
                     dcm_tmp = pydicom.read_file(dcm_path, force=force)
+                    if not dcm.get('SOPClassUID'):
+                        log.warning('%s is likely corrupted. No SOPClassUID defined', dcm_path)
+                        continue
                     # Here we check for the Raw Data Storage SOP Class, if there
                     # are other pydicom files in the zip then we read the next one,
                     # if this is the only class of pydicom in the file, we accept
                     # our fate and move on.
                     if dcm_tmp.get('SOPClassUID') == 'Raw Data Storage' and n != range((num_files - 1), -1, -1)[-1]:
                         continue
-                    else:
-                        dcm_list.append(dcm_tmp)
+                    dcm_list.append(dcm_tmp)
                 except:
                     pass
             else:
