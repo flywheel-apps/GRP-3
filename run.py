@@ -643,7 +643,7 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
                 try:
                     log.info('reading %s' % dcm_path)
                     dcm_tmp = pydicom.read_file(dcm_path, force=force)
-                    if not dcm.get('SOPClassUID'):
+                    if not hasattr(dcm_tmp, 'SOPClassUID'):
                         log.warning('%s is likely corrupted. No SOPClassUID defined', dcm_path)
                         continue
                     # Here we check for the Raw Data Storage SOP Class, if there
