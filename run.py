@@ -117,6 +117,12 @@ def get_timestamp(dcm, timezone):
     elif hasattr(dcm, 'StudyDate') and getattr(dcm, 'StudyDate'):
         study_date = dcm.StudyDate
         study_time = '000000.00'
+    elif hasattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesDate'):
+        study_date = dcm.SeriesDate
+        study_time = '000000.00'
+    elif hasattr(dcm, 'AcquisitionDate') and getattr(dcm, 'AcquisitionDate'):
+        study_date = dcm.AcquisitionDate
+        study_time = '000000.00'
     else:
         study_date = None
         study_time = None
