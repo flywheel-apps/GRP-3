@@ -105,7 +105,7 @@ def get_timestamp(dcm, timezone):
     """
     Parse Study Date and Time, return acquisition and session timestamps
     """
-    # Study Date and Time
+    # Study Date and Time, with precedence as below
     if hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime') and \
        getattr(dcm, 'StudyDate') and getattr(dcm, 'StudyTime'):
         study_date = dcm.StudyDate
@@ -114,6 +114,7 @@ def get_timestamp(dcm, timezone):
          getattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesTime'):
         study_date = dcm.SeriesDate
         study_time = dcm.SeriesTime
+    # If only Dates are available setting time to 00:00
     elif hasattr(dcm, 'StudyDate') and getattr(dcm, 'StudyDate'):
         study_date = dcm.StudyDate
         study_time = '000000.00'
@@ -127,7 +128,7 @@ def get_timestamp(dcm, timezone):
         study_date = None
         study_time = None
 
-    # Acquisition Date and Time
+    # Acquisition Date and Time, with precedence as below
     if hasattr(dcm, 'SeriesDate') and hasattr(dcm, 'SeriesTime') and \
        getattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesTime'):
         acquisition_date = dcm.SeriesDate
@@ -136,8 +137,7 @@ def get_timestamp(dcm, timezone):
        getattr(dcm, 'AcquisitionDate') and getattr(dcm, 'AcquisitionTime'):
         acquisition_date = dcm.AcquisitionDate
         acquisition_time = dcm.AcquisitionTime
-    elif hasattr(dcm, 'AcquisitionDateTime') and  \
-         getattr(dcm, 'AcquisitionDateTime'):
+    elif hasattr(dcm, 'AcquisitionDateTime') and getattr(dcm, 'AcquisitionDateTime'):
         acquisition_date = dcm.AcquisitionDateTime[0:8]
         acquisition_time = dcm.AcquisitionDateTime[8:]
     # The following allows the timestamps to be set for ScreenSaves
@@ -145,7 +145,7 @@ def get_timestamp(dcm, timezone):
          getattr(dcm, 'ContentDate') and getattr(dcm, 'ContentTime'):
         acquisition_date = dcm.ContentDate
         acquisition_time = dcm.ContentTime
-    # These will ensure that acquisition_date and acquisition_time are set
+    # Looking deeper if nothing found so far
     elif hasattr(dcm, 'SeriesDate') and hasattr(dcm, 'SeriesTime') and \
          getattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesTime'):
         acquisition_date = dcm.SeriesDate
@@ -154,6 +154,7 @@ def get_timestamp(dcm, timezone):
          getattr(dcm, 'StudyDate') and getattr(dcm, 'StudyTime'):
         acquisition_date = dcm.StudyDate
         acquisition_time = dcm.StudyTime
+    # If only Dates are available setting time to 00:00
     elif hasattr(dcm, 'AcquisitionDate') and getattr(dcm, 'AcquisitionDate'):
         acquisition_date = dcm.AcquisitionDate
         acquisition_time = '000000.00'
@@ -649,9 +650,6 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
         log.warning('dcm is empty!!!')
         os.sys.exit(1)
 
-    # Handle date on dcm
-    dcm = dicom_date_handler(dcm)
-
     # Create pandas object for comparing headers
     df_list = []
     for header in dcm_list:
@@ -738,7 +736,6 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
         uniqueiop = df.ImageOrientationPatient.is_unique
     else:
         uniqueiop = []
-
 
     # Acquisition metadata
     metadata['acquisition'] = {}
