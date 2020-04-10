@@ -629,56 +629,55 @@ def dicom_date_handler(dcm):
     return dcm
 
 
-def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
-    dcm = None
-    # Extract the last file in the zip to /tmp/ and read it
-    if zipfile.is_zipfile(zip_file_path):
-        dcm_list = []
-        zip = zipfile.ZipFile(zip_file_path)
-        num_files = len(zip.namelist())
-        for n in range((num_files - 1), -1, -1):
-            dcm_path = zip.extract(zip.namelist()[n], '/tmp')
-            dcm_tmp = None
-            if os.path.isfile(dcm_path):
-                try:
-                    log.info('reading %s' % dcm_path)
-                    dcm_tmp = pydicom.read_file(dcm_path, force=force)
-                    if not hasattr(dcm_tmp, 'SOPClassUID'):
-                        log.warning('%s is likely corrupted. No SOPClassUID defined', dcm_path)
-                        continue
-                    # Here we check for the Raw Data Storage SOP Class, if there
-                    # are other pydicom files in the zip then we read the next one,
-                    # if this is the only class of pydicom in the file, we accept
-                    # our fate and move on.
-                    if dcm_tmp.get('SOPClassUID') == 'Raw Data Storage' and n != range((num_files - 1), -1, -1)[-1]:
-                        continue
-                    dcm_list.append(dcm_tmp)
-                except:
-                    pass
-            else:
-                log.warning('%s does not exist!' % dcm_path)
-        if dcm_list:
-            dcm = dcm_list[-1]
+def get_dcm_data_dict(dcm_path, force=False):
+    file_size = os.path.getsize(dcm_path)
+    res = {'path': dcm_path, 'file_size': file_size}
+    if file_size > 0:
+        try:
+            dcm = pydicom.dcmread(dcm_path, force=force, stop_before_pixels=True)
+            res['header'] = get_pydicom_header(dcm)
+        except Exception:
+            log.warning('Failed to parse %s. Skipping.', dcm_path)
     else:
-        log.info('Not a zip. Attempting to read %s directly' % os.path.basename(zip_file_path))
-        dcm = pydicom.read_file(zip_file_path, force=force)
-        dcm_list = [dcm]
-    if not dcm:
-        log.warning('dcm is empty!!!')
-        os.sys.exit(1)
+        log.warning('% is empty. Skipping.', dcm_path)
+    return res
 
-    # Create pandas object for comparing headers
-    df_list = []
-    for header in dcm_list:
-        tmp_dict = get_pydicom_header(header)
-        for key in tmp_dict:
-            if type(tmp_dict[key]) == list:
-                tmp_dict[key] = str(tmp_dict[key])
+
+def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
+
+    # Build list of dcm files
+    if zipfile.is_zipfile(file_path):
+        log.info('Extracting %s ' % os.path.basename(file_path))
+        zip = zipfile.ZipFile(file_path)
+        dcm_path_list = zip.extract(zip.namelist(), tempfile.NamedTemporaryFile())
+    else:
+        log.info('Not a zip. Attempting to read %s directly' % os.path.basename(file_path))
+        dcm_path_list = [file_path]
+
+    # Get list of dcm data
+    dcm_data_list = []
+    for dcm_path in dcm_path_list:
+        dcm_data_list.append(get_dcm_data_dict(dcm_path, force=force))
+
+    # Load a representative dcm file
+    # Currently: not 0-byte file and SOPClassUID not Raw Data Storage unless that the only file
+    dcm = None
+    for i, it in enumerate(dcm_data_list):
+        if it['file_size'] > 0:
+            # Here we check for the Raw Data Storage SOP Class, if there
+            # are other pydicom files in the zip then we read the next one,
+            # if this is the only class of pydicom in the file, we accept
+            # our fate and move on.
+            if it['header'].get('SOPClassUID') == 'Raw Data Storage' and i < len(dcm_data_list) - 1:
+                continue
             else:
-                tmp_dict[key] = [tmp_dict[key]]
-        df_tmp = pd.DataFrame.from_dict(tmp_dict)
-        df_list.append(df_tmp)
-    df = pd.concat(df_list, ignore_index=True, sort=True)
+                dcm = pydicom.dcmread(it['path'], force=force)
+                break
+    if not dcm:
+        log.warning('No dcm file found to be parsed!!!')
+        os.sys.exit(1)
+    else:
+        log.info('%s will be used for metadata extraction', os.path.basename(dcm['path']))
 
     # Build metadata
     metadata = {}
@@ -738,21 +737,13 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
 
     # File metadata
     pydicom_file = {}
-    pydicom_file['name'] = os.path.basename(zip_file_path)
+    pydicom_file['name'] = os.path.basename(file_path)
     pydicom_file['modality'] = format_string(dcm.get('Modality', 'MR'))
     pydicom_file['info'] = {
                                 "header": {
                                     "dicom": {}
                                 }
                             }
-    # Determine how many DICOM files are in directory
-    slice_number = len(df)
-
-    # Determine whether ImageOrientationPatient is constant
-    if hasattr(df, 'ImageOrientationPatient'):
-        uniqueiop = df.ImageOrientationPatient.is_unique
-    else:
-        uniqueiop = []
 
     # Acquisition metadata
     metadata['acquisition'] = {}
@@ -776,12 +767,12 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
             pydicom_file['info']['header']['dicom']['CSAHeader'] = csa_header
 
     # Validate header data against json schema template
-    error_file_name = os.path.basename(zip_file_path) + '.error.log.json'
+    error_file_name = os.path.basename(file_path) + '.error.log.json'
     error_filepath = os.path.join(outbase, error_file_name)
     validation_errors = validate_against_template(pydicom_file['info']['header']['dicom'], json_template)
 
     # Validate DICOM header df against file rules
-    rule_errors = validate_against_rules(df)
+    rule_errors = validate_against_rules(dcm_data_list)
 
     # Add error lists together
     validation_errors = validation_errors + rule_errors
