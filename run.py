@@ -422,7 +422,7 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
     # Currently: not 0-byte file and SOPClassUID not Raw Data Storage unless that the only file
     dcm = None
     for i, it in enumerate(dcm_dict_list):
-        if it['file_size'] > 0:
+        if it['size'] > 0:
             # Here we check for the Raw Data Storage SOP Class, if there
             # are other pydicom files in the zip then we read the next one,
             # if this is the only class of pydicom in the file, we accept
@@ -436,7 +436,7 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
         log.warning('No dcm file found to be parsed!!!')
         os.sys.exit(1)
     else:
-        log.info('%s will be used for metadata extraction', os.path.basename(dcm['path']))
+        log.info('%s will be used for metadata extraction', os.path.basename(it['path']))
 
     # Build metadata
     metadata = {}

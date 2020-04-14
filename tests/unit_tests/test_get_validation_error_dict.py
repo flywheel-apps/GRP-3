@@ -2,7 +2,7 @@ import json
 
 import jsonschema
 
-from run import get_validation_error_dict, validate_against_template
+from utils.validation import get_validation_error_dict, validate_against_template
 
 
 def test_get_validation_error_dict_enum():

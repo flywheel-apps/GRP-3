@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 DEFAULT_RULE_LIST = [
     'check_instance_number_uniqueness',
-    'check_missing_slices_on_sequence',
+    'check_missing_slices',
     'check_0_byte_file'
 ]
 
@@ -236,7 +236,7 @@ def check_instance_number_uniqueness(dcm_dict_list):
     return error_list
 
 
-def check_dcm_is_0_byte(dcm_dict_list):
+def check_0_byte_file(dcm_dict_list):
     """Check if dcm file is 0-byte size
 
     Args:
