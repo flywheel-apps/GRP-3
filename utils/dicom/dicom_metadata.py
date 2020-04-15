@@ -141,40 +141,6 @@ def get_session_label(dcm):
     return session_label
 
 
-def get_session_timestamp(dicom_ds, timezone):
-    if hasattr(dicom_ds, 'StudyDate') and hasattr(dicom_ds, 'StudyTime'):
-        study_date = dicom_ds.StudyDate
-        study_time = dicom_ds.StudyTime
-    elif hasattr(dicom_ds, 'StudyDateTime'):
-        study_date = dicom_ds.StudyDateTime[0:8]
-        study_time = dicom_ds.StudyDateTime[8:]
-    else:
-        study_date = None
-        study_time = None
-    session_timestamp = format_timestamp(study_date, study_time, timezone)
-    return session_timestamp
-
-
-def get_acquisition_timestamp(dicom_ds, timezone):
-    dicom_ds = dicom_acquisition_date_handler(dicom_ds)
-    if dicom_ds.get('AcquisitionDate') and dicom_ds.get('AcquisitionTime'):
-        acquisition_date = dicom_ds.AcquisitionDate
-        acquisition_time = dicom_ds.AcquisitionTime
-    elif getattr(dicom_ds, 'AcquisitionDateTime'):
-        acquisition_date = dicom_ds.AcquisitionDateTime[0:8]
-        acquisition_time = dicom_ds.AcquisitionDateTime[8:]
-    # The following allows the timestamps to be set for ScreenSaves
-    elif getattr(dicom_ds, 'ContentDate') and getattr(dicom_ds, 'ContentTime'):
-        acquisition_date = dicom_ds.ContentDate
-        acquisition_time = dicom_ds.ContentTime
-    else:
-        acquisition_date = None
-        acquisition_time = None
-
-    acquisition_timestamp = format_timestamp(acquisition_date, acquisition_time, timezone)
-    return acquisition_timestamp
-
-
 def parse_patient_age(age):
     """
     Parse patient age from string.

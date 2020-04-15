@@ -103,46 +103,83 @@ def timestamp(date, time, timezone):
 
 def get_timestamp(dcm, timezone):
     """
-    Parse Study Date and Time, return acquisition and session timestamps
+    Parse Study Date and Time, return acquisition and session timestamps.
+
+    For study date/time Dicom tag used by order of priority goes like a:
+        - StudyDate/StudyTime
+        - SeriesDate/SeriesTime
+        - AcquisitionDate/AcquisitionTime
+        - AcquisitionDateTime
+        - StudyDate and Time defaults to 00:00
+        - SeriesDates and Time defaults to 00:00
+        - AcquisitionDate and Time defaults to 00:00
+
+    For acquisition date/time Dicom tag used by order of priority goes like a:
+        - SeriesDate/SeriesTime
+        - AcquisitionDate/AcquisitionTime
+        - AcquisitionDateTime
+        - ContentDate/ContentTime
+        - StudyDate/StudyTime
+        - SeriesDate and Time defaults to 00:00
+        - AcquisitionDate and Time defaults to 00:00
+        - StudyDate and Time defaults to 00:00
     """
-    if hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime') and \
-       getattr(dcm, 'StudyDate') and getattr(dcm, 'StudyTime'):
+    # Study Date and Time, with precedence as below
+    if getattr(dcm, 'StudyDate', None) and getattr(dcm, 'StudyTime', None):
         study_date = dcm.StudyDate
         study_time = dcm.StudyTime
-    elif hasattr(dcm, 'StudyDateTime') and \
-         getattr(dcm, 'StudyDateTime'):
-        study_date = dcm.StudyDateTime[0:8]
-        study_time = dcm.StudyDateTime[8:]
-    elif hasattr(dcm, 'SeriesDate') and hasattr(dcm, 'SeriesTime') and \
-         getattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesTime'):
+    elif getattr(dcm, 'SeriesDate', None) and getattr(dcm, 'SeriesTime', None):
         study_date = dcm.SeriesDate
         study_time = dcm.SeriesTime
+    elif getattr(dcm, 'AcquisitionDate', None) and getattr(dcm, 'AcquisitionTime', None):
+        study_date = dcm.AcquisitionDate
+        study_time = dcm.AcquisitionTime
+    elif getattr(dcm, 'AcquisitionDateTime', None):
+        study_date = dcm.AcquisitionDateTime[0:8]
+        study_time = dcm.AcquisitionDateTime[8:]
+    # If only Dates are available setting time to 00:00
+    elif getattr(dcm, 'StudyDate', None):
+        study_date = dcm.StudyDate
+        study_time = '000000.00'
+    elif getattr(dcm, 'SeriesDate', None):
+        study_date = dcm.SeriesDate
+        study_time = '000000.00'
+    elif getattr(dcm, 'AcquisitionDate', None):
+        study_date = dcm.AcquisitionDate
+        study_time = '000000.00'
     else:
         study_date = None
         study_time = None
 
-    if hasattr(dcm, 'AcquisitionDate') and hasattr(dcm, 'AcquisitionTime') and \
-       getattr(dcm, 'AcquisitionDate') and getattr(dcm, 'AcquisitionTime'):
+    # Acquisition Date and Time, with precedence as below
+    if getattr(dcm, 'SeriesDate', None) and getattr(dcm, 'SeriesTime', None):
+        acquisition_date = dcm.SeriesDate
+        acquisition_time = dcm.SeriesTime
+    elif getattr(dcm, 'AcquisitionDate', None) and getattr(dcm, 'AcquisitionTime', None):
         acquisition_date = dcm.AcquisitionDate
         acquisition_time = dcm.AcquisitionTime
-    elif hasattr(dcm, 'AcquisitionDateTime') and  \
-         getattr(dcm, 'AcquisitionDateTime'):
+    elif getattr(dcm, 'AcquisitionDateTime', None):
         acquisition_date = dcm.AcquisitionDateTime[0:8]
         acquisition_time = dcm.AcquisitionDateTime[8:]
     # The following allows the timestamps to be set for ScreenSaves
-    elif hasattr(dcm, 'ContentDate') and hasattr(dcm, 'ContentTime') and \
-         getattr(dcm, 'ContentDate') and getattr(dcm, 'ContentTime'):
+    elif getattr(dcm, 'ContentDate', None) and getattr(dcm, 'ContentTime', None):
         acquisition_date = dcm.ContentDate
         acquisition_time = dcm.ContentTime
-    # These will ensure that acquisition_date and acquisition_time are set
-    elif hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime') and \
-         getattr(dcm, 'StudyDate') and getattr(dcm, 'StudyTime'):
+    # Looking deeper if nothing found so far
+    elif getattr(dcm, 'StudyDate', None) and getattr(dcm, 'StudyTime', None):
         acquisition_date = dcm.StudyDate
         acquisition_time = dcm.StudyTime
-    elif hasattr(dcm, 'StudyDateTime') and \
-         getattr(dcm, 'StudyDateTime'):
-        acquisition_date = dcm.StudyDateTime[0:8]
-        acquisition_time = dcm.StudyDateTime[8:]
+    # If only Dates are available setting time to 00:00
+    elif getattr(dcm, 'SeriesDate', None):
+        acquisition_date = dcm.SeriesDate
+        acquisition_time = '000000.00'
+    elif getattr(dcm, 'AcquisitionDate', None):
+        acquisition_date = dcm.AcquisitionDate
+        acquisition_time = '000000.00'
+    elif getattr(dcm, 'StudyDate', None):
+        acquisition_date = dcm.StudyDate
+        acquisition_time = '000000.00'
+
     else:
         acquisition_date = None
         acquisition_time = None
@@ -628,9 +665,6 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
         log.warning('dcm is empty!!!')
         os.sys.exit(1)
 
-    # Handle date on dcm
-    dcm = dicom_date_handler(dcm)
-
     # Create pandas object for comparing headers
     df_list = []
     for header in dcm_list:
@@ -717,7 +751,6 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
         uniqueiop = df.ImageOrientationPatient.is_unique
     else:
         uniqueiop = []
-
 
     # Acquisition metadata
     metadata['acquisition'] = {}
