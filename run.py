@@ -106,22 +106,20 @@ def get_timestamp(dcm, timezone):
     Parse Study Date and Time, return acquisition and session timestamps
     """
     # Study Date and Time, with precedence as below
-    if hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime') and \
-       getattr(dcm, 'StudyDate') and getattr(dcm, 'StudyTime'):
+    if getattr(dcm, 'StudyDate', None) and getattr(dcm, 'StudyTime', None):
         study_date = dcm.StudyDate
         study_time = dcm.StudyTime
-    elif hasattr(dcm, 'SeriesDate') and hasattr(dcm, 'SeriesTime') and \
-         getattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesTime'):
+    elif getattr(dcm, 'SeriesDate', None) and getattr(dcm, 'SeriesTime', None):
         study_date = dcm.SeriesDate
         study_time = dcm.SeriesTime
     # If only Dates are available setting time to 00:00
-    elif hasattr(dcm, 'StudyDate') and getattr(dcm, 'StudyDate'):
+    elif getattr(dcm, 'StudyDate', None):
         study_date = dcm.StudyDate
         study_time = '000000.00'
-    elif hasattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesDate'):
+    elif getattr(dcm, 'SeriesDate', None):
         study_date = dcm.SeriesDate
         study_time = '000000.00'
-    elif hasattr(dcm, 'AcquisitionDate') and getattr(dcm, 'AcquisitionDate'):
+    elif getattr(dcm, 'AcquisitionDate', None):
         study_date = dcm.AcquisitionDate
         study_time = '000000.00'
     else:
@@ -129,39 +127,34 @@ def get_timestamp(dcm, timezone):
         study_time = None
 
     # Acquisition Date and Time, with precedence as below
-    if hasattr(dcm, 'SeriesDate') and hasattr(dcm, 'SeriesTime') and \
-       getattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesTime'):
+    if getattr(dcm, 'SeriesDate', None) and getattr(dcm, 'SeriesTime', None):
         acquisition_date = dcm.SeriesDate
         acquisition_time = dcm.SeriesTime
-    elif hasattr(dcm, 'AcquisitionDate') and hasattr(dcm, 'AcquisitionTime') and \
-       getattr(dcm, 'AcquisitionDate') and getattr(dcm, 'AcquisitionTime'):
+    elif getattr(dcm, 'AcquisitionDate', None) and getattr(dcm, 'AcquisitionTime', None):
         acquisition_date = dcm.AcquisitionDate
         acquisition_time = dcm.AcquisitionTime
-    elif hasattr(dcm, 'AcquisitionDateTime') and getattr(dcm, 'AcquisitionDateTime'):
+    elif getattr(dcm, 'AcquisitionDateTime', None):
         acquisition_date = dcm.AcquisitionDateTime[0:8]
         acquisition_time = dcm.AcquisitionDateTime[8:]
     # The following allows the timestamps to be set for ScreenSaves
-    elif hasattr(dcm, 'ContentDate') and hasattr(dcm, 'ContentTime') and \
-         getattr(dcm, 'ContentDate') and getattr(dcm, 'ContentTime'):
+    elif getattr(dcm, 'ContentDate', None) and getattr(dcm, 'ContentTime', None):
         acquisition_date = dcm.ContentDate
         acquisition_time = dcm.ContentTime
     # Looking deeper if nothing found so far
-    elif hasattr(dcm, 'SeriesDate') and hasattr(dcm, 'SeriesTime') and \
-         getattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesTime'):
+    elif getattr(dcm, 'SeriesDate', None) and getattr(dcm, 'SeriesTime', None):
         acquisition_date = dcm.SeriesDate
         acquisition_time = dcm.SeriesTime
-    elif hasattr(dcm, 'StudyDate') and hasattr(dcm, 'StudyTime') and \
-         getattr(dcm, 'StudyDate') and getattr(dcm, 'StudyTime'):
+    elif getattr(dcm, 'StudyDate', None) and getattr(dcm, 'StudyTime', None):
         acquisition_date = dcm.StudyDate
         acquisition_time = dcm.StudyTime
     # If only Dates are available setting time to 00:00
-    elif hasattr(dcm, 'AcquisitionDate') and getattr(dcm, 'AcquisitionDate'):
+    elif getattr(dcm, 'AcquisitionDate', None):
         acquisition_date = dcm.AcquisitionDate
         acquisition_time = '000000.00'
-    elif hasattr(dcm, 'SeriesDate') and getattr(dcm, 'SeriesDate'):
+    elif getattr(dcm, 'SeriesDate', None):
         acquisition_date = dcm.SeriesDate
         acquisition_time = '000000.00'
-    elif hasattr(dcm, 'StudyDate') and getattr(dcm, 'StudyDate'):
+    elif getattr(dcm, 'StudyDate', None):
         acquisition_date = dcm.StudyDate
         acquisition_time = '000000.00'
 
