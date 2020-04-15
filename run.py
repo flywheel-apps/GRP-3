@@ -103,7 +103,26 @@ def timestamp(date, time, timezone):
 
 def get_timestamp(dcm, timezone):
     """
-    Parse Study Date and Time, return acquisition and session timestamps
+    Parse Study Date and Time, return acquisition and session timestamps.
+
+    For study date/time Dicom tag used by order of priority goes like a:
+        - StudyDate/StudyTime
+        - SeriesDate/SeriesTime
+        - AcquisitionDate/AcquisitionTime
+        - AcquisitionDateTime
+        - StudyDate and Time defaults to 00:00
+        - SeriesDates and Time defaults to 00:00
+        - AcquisitionDate and Time defaults to 00:00
+
+    For acquisition date/time Dicom tag used by order of priority goes like a:
+        - SeriesDate/SeriesTime
+        - AcquisitionDate/AcquisitionTime
+        - AcquisitionDateTime
+        - ContentDate/ContentTime
+        - StudyDate/StudyTime
+        - SeriesDate and Time defaults to 00:00
+        - AcquisitionDate and Time defaults to 00:00
+        - StudyDate and Time defaults to 00:00
     """
     # Study Date and Time, with precedence as below
     if getattr(dcm, 'StudyDate', None) and getattr(dcm, 'StudyTime', None):
@@ -147,18 +166,15 @@ def get_timestamp(dcm, timezone):
         acquisition_date = dcm.ContentDate
         acquisition_time = dcm.ContentTime
     # Looking deeper if nothing found so far
-    elif getattr(dcm, 'SeriesDate', None) and getattr(dcm, 'SeriesTime', None):
-        acquisition_date = dcm.SeriesDate
-        acquisition_time = dcm.SeriesTime
     elif getattr(dcm, 'StudyDate', None) and getattr(dcm, 'StudyTime', None):
         acquisition_date = dcm.StudyDate
         acquisition_time = dcm.StudyTime
     # If only Dates are available setting time to 00:00
-    elif getattr(dcm, 'AcquisitionDate', None):
-        acquisition_date = dcm.AcquisitionDate
-        acquisition_time = '000000.00'
     elif getattr(dcm, 'SeriesDate', None):
         acquisition_date = dcm.SeriesDate
+        acquisition_time = '000000.00'
+    elif getattr(dcm, 'AcquisitionDate', None):
+        acquisition_date = dcm.AcquisitionDate
         acquisition_time = '000000.00'
     elif getattr(dcm, 'StudyDate', None):
         acquisition_date = dcm.StudyDate
