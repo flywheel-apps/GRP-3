@@ -112,6 +112,12 @@ def get_timestamp(dcm, timezone):
     elif getattr(dcm, 'SeriesDate', None) and getattr(dcm, 'SeriesTime', None):
         study_date = dcm.SeriesDate
         study_time = dcm.SeriesTime
+    elif getattr(dcm, 'AcquisitionDate', None) and getattr(dcm, 'AcquisitionTime', None):
+        study_date = dcm.AcquisitionDate
+        study_time = dcm.AcquisitionTime
+    elif getattr(dcm, 'AcquisitionDateTime', None):
+        study_date = dcm.AcquisitionDateTime[0:8]
+        study_time = dcm.AcquisitionDateTime[8:]
     # If only Dates are available setting time to 00:00
     elif getattr(dcm, 'StudyDate', None):
         study_date = dcm.StudyDate
