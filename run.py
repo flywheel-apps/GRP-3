@@ -408,7 +408,9 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
     if zipfile.is_zipfile(file_path):
         log.info('Extracting %s ' % os.path.basename(file_path))
         zip = zipfile.ZipFile(file_path)
-        dcm_path_list = zip.extract(zip.namelist(), tempfile.NamedTemporaryFile())
+        tmp_dir = tempfile.TemporaryDirectory().name
+        zip.extractall(path=tmp_dir)
+        dcm_path_list = list(map(lambda x: os.path.join(tmp_dir, x), os.listdir(tmp_dir)))
     else:
         log.info('Not a zip. Attempting to read %s directly' % os.path.basename(file_path))
         dcm_path_list = [file_path]
