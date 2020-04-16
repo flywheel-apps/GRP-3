@@ -6,7 +6,8 @@ import sys
 import json
 import pytz
 import pydicom
-from pydicom.errors import InvalidDicomError
+from pydicom.datadict import DicomDictionary
+from pydicom.tag import Tag
 import string
 import tzlocal
 import logging
@@ -15,6 +16,7 @@ import datetime
 import nibabel
 import tempfile
 from pathlib import Path
+
 
 from utils.dicom import dicom_archive
 from utils.update_file_info import get_file_dict_and_update_metadata_json
@@ -299,6 +301,20 @@ def walk_dicom(dcm):
     return errors
 
 
+def fix_type_based_on_dicom_vm(header):
+    for k, v in header.items():
+        try:
+            vr, vm, _, _, _ = DicomDictionary.get(Tag(k))
+        except ValueError:
+            continue
+
+        if vr != 'SQ':
+            if vm != '1' and not isinstance(v, list): # anything else is a list
+                header[k] = [v]
+        else:
+            fix_type_based_on_dicom_vm(v)
+
+
 def get_pydicom_header(dcm):
     # Extract the header values
     errors = walk_dicom(dcm)   # used to load all dcm tags in memory
@@ -329,6 +345,7 @@ def get_pydicom_header(dcm):
                         header[tag] = format_string(value)
                     else:
                         header[tag] = assign_type(value)
+
                 else:
                     log.debug('No value found for tag: ' + tag)
 
@@ -340,6 +357,9 @@ def get_pydicom_header(dcm):
         except:
             log.debug('Failed to get ' + tag)
             pass
+
+    fix_type_based_on_dicom_vm(header)
+
     return header
 
 

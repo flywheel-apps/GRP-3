@@ -6,7 +6,7 @@ import copy
 
 from pydicom.data import get_testdata_files
 
-from run import dicom_to_json, validate_timezone, get_seq_data, walk_dicom
+from run import dicom_to_json, validate_timezone, get_seq_data, walk_dicom, fix_type_based_on_dicom_vm
 
 
 def test_dicom_to_json_no_patientname():
@@ -44,3 +44,12 @@ def test_get_seq_data():
     res = get_seq_data(dcm.get('DimensionIndexSequence'), [])
     assert 'DimensionOrganizationUID' in res[0]['DimensionIndexSequence'][0]
 
+
+def test_fix_type_based_on_dicom_vm():
+    header = {'ImageType': 'Localizer'}
+    fix_type_based_on_dicom_vm(header)
+    assert isinstance(header['ImageType'], list)
+
+    header = {'SOPInstanceUID': '1.1.whatever'}
+    fix_type_based_on_dicom_vm(header)
+    assert not isinstance(header['SOPInstanceUID'], list)
