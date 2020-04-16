@@ -3,17 +3,15 @@
 import os
 import re
 import json
-import jsonschema
 import pytz
 import pydicom
+from pydicom.errors import InvalidDicomError
 import string
 import tzlocal
 import logging
 import zipfile
 import datetime
 import nibabel
-import pandas as pd
-import numpy as np
 import tempfile
 
 from utils.dicom import dicom_archive
@@ -430,10 +428,15 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
             # if this is the only class of pydicom in the file, we accept
             # our fate and move on.
             if it['header'].get('SOPClassUID') == 'Raw Data Storage' and i < len(dcm_dict_list) - 1:
+                log.warning('% could not open with force=%s. Skipping', it['path'], force)
                 continue
             else:
-                dcm = pydicom.dcmread(it['path'], force=force)
-                break
+                try:
+                    dcm = pydicom.dcmread(it['path'], force=force)
+                    break
+                except InvalidDicomError:
+                    log.warning('Failed to read dicom % with force=%s. Skipping', it['path'], force)
+                    continue
     if not dcm:
         log.warning('No dcm file found to be parsed!!!')
         os.sys.exit(1)
