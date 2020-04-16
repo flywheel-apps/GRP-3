@@ -312,7 +312,8 @@ def fix_type_based_on_dicom_vm(header):
             if vm != '1' and not isinstance(v, list): # anything else is a list
                 header[k] = [v]
         else:
-            fix_type_based_on_dicom_vm(v)
+            for ds in v:
+                fix_type_based_on_dicom_vm(ds)
 
 
 def get_pydicom_header(dcm):

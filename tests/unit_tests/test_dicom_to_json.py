@@ -53,3 +53,7 @@ def test_fix_type_based_on_dicom_vm():
     header = {'SOPInstanceUID': '1.1.whatever'}
     fix_type_based_on_dicom_vm(header)
     assert not isinstance(header['SOPInstanceUID'], list)
+
+    header = {'DirectoryRecordSequence': [{'ImageType': 'Localizer'}]}
+    fix_type_based_on_dicom_vm(header)
+    assert isinstance(header['DirectoryRecordSequence'][0]['ImageType'], list)
