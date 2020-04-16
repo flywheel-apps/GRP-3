@@ -428,15 +428,17 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
             # if this is the only class of pydicom in the file, we accept
             # our fate and move on.
             if it['header'].get('SOPClassUID') == 'Raw Data Storage' and i < len(dcm_dict_list) - 1:
-                log.warning('% could not open with force=%s. Skipping', it['path'], force)
+                log.warning('%s could not open with force=%s. Skipping', it['path'], force)
                 continue
             else:
                 try:
                     dcm = pydicom.dcmread(it['path'], force=force)
                     break
                 except InvalidDicomError:
-                    log.warning('Failed to read dicom % with force=%s. Skipping', it['path'], force)
+                    log.warning('Failed to read dicom %s with force=%s. Skipping', it['path'], force)
                     continue
+        else:
+            log.warning('File %s has %s byte size. Skipping', it['path'], force)
     if not dcm:
         log.warning('No dcm file found to be parsed!!!')
         os.sys.exit(1)
