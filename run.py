@@ -428,7 +428,7 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
             # if this is the only class of pydicom in the file, we accept
             # our fate and move on.
             if it['header'].get('SOPClassUID') == 'Raw Data Storage' and i < len(dcm_dict_list) - 1:
-                log.warning('%s could not open with force=%s. Skipping', it['path'], force)
+                log.warning('SOPClassUID=Raw Data Storage for %s. Skipping', it['path'])
                 continue
             else:
                 try:
