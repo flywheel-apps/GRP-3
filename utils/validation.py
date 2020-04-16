@@ -77,15 +77,17 @@ def check_missing_slices(dcm_dict_list):
         df = pd.DataFrame(data)
 
         # Attempt to find locations via SliceLocation header
-        if all(elem in ['SliceLocation', 'ImageType'] for elem in df.columns):
-            df = df.dropna(subset=['SliceLocation', 'ImageType'])
+        if all(elem in df.columns for elem in ['SliceLocation', 'ImageType']) and \
+                len(df.dropna(subset=['SliceLocation', 'ImageType'])) > 1:
+            df.dropna(subset=['SliceLocation', 'ImageType'], inplace=True)
             # This line iterates through all SliceLocations in rows where LOCALIZER not in ImageType
             for location in (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['SliceLocation']:
                 locations.append(location)
 
         # Attempt to find locations by ImageOrientationPatient and ImagePositionPatient headers
-        elif all(elem in ['ImageOrientationPatient', 'ImagePositionPatient', 'ImageType'] for elem in df.columns):
-
+        elif all(elem in df.columns for elem in ['ImageOrientationPatient', 'ImagePositionPatient', 'ImageType']) and \
+            len(df.dropna(subset=['ImageOrientationPatient', 'ImagePositionPatient', 'ImageType'])) > 1:
+            df.dropna(subset=['ImageOrientationPatient', 'ImageType', 'ImagePositionPatient'], inplace=True)
             # DICOM headers annoyingly hold arrays as strings with puncuation
             # This function is needed to turn that string into a real data structure
             def string_to_array(input_str, expected_length):
@@ -113,15 +115,15 @@ def check_missing_slices(dcm_dict_list):
                 normal = np.cross(v2, v1)
 
                 # Slice locations are the position vectors times the normal vector from above
-                # This line iterates through all ImagePositionPatients in rows where LOCALIZER not in ImageType
-                for pos in (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['ImageOrientationPatient']:
+                # This line iterates through all ImagePositionPatient in rows where LOCALIZER not in ImageType
+                for pos in (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['ImagePositionPatient']:
                     position = string_to_array(pos, expected_length=3)
                     if position:
                         location = np.dot(normal, position)
                         locations.append(location)
                     else:
                         locations = []
-                        log.warning("'ImagePositionPatient' string format error, cannot check for missing slices!")
+                        log.warning("'ImagePositionPatients' string format error, cannot check for missing slices!")
                         break
 
             else:
@@ -184,16 +186,17 @@ def check_missing_slices(dcm_dict_list):
         return True
 
     # Groups dcm_dict_list by SequenceName
-    dcm_dict_list_grouped = list(itertools.groupby(dcm_dict_list, key=lambda x: x['header'].get('SequenceName')))
-    sequences = [el[0] for el in dcm_dict_list_grouped]
+    dcm_dict_list_grouped = itertools.groupby(dcm_dict_list, key=lambda x: x['header'].get('SequenceName'))
+    sequences_group = [(el[0], list(el[1])) for el in dcm_dict_list_grouped]
+    sequences = list(zip(sequences_group))[0]
 
     # If there's only one sequence, we don't bother logging
-    if len(dcm_dict_list_grouped) > 1:
+    if len(sequences_group) > 1:
         log.warning('Multiple image sequences found in acquisition (%s), will check each individually', sequences)
 
     # For every frame in new_frame, add any missing slice errors to error_list
     error_list = []
-    for seq, dcm_dict_list_sub in dcm_dict_list_grouped:
+    for seq, dcm_dict_list_sub in sequences_group:
 
         dcm_dict_list_sub_l = list(dcm_dict_list_sub)
         if not _is_enough_slice_to_check_missing_slice(dcm_dict_list_sub_l):

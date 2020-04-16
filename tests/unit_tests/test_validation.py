@@ -1,8 +1,90 @@
 import json
+import pytest
+import logging
 
 import jsonschema
 
-from utils.validation import get_validation_error_dict, validate_against_template
+from utils.validation import get_validation_error_dict, validate_against_template, validate_against_rules, \
+    check_0_byte_file, check_instance_number_uniqueness, check_missing_slices
+
+
+def test_check_0_byte_file():
+    dcm_dict_list = [{'size': 0, 'path': 'path0'}, {'size': 1, 'path': 'path1'}]
+
+    error_list = check_0_byte_file(dcm_dict_list)
+
+    assert len(error_list) == 1
+    expected_error = {
+        'error_message': 'Dicom file is empty: path0',
+        'revalidate': False
+    }
+    assert error_list == [expected_error]
+
+    error_list = check_0_byte_file(dcm_dict_list[1:])
+    assert not error_list
+
+
+def test_check_instance_number_uniqueness():
+    dcm_dict_list = [{'path': 'path0', 'header': {'InstanceNumber': 1}},
+                     {'path': 'path1', 'header': {'InstanceNumber': 1}}]
+
+    error_list = check_instance_number_uniqueness(dcm_dict_list)
+
+    expected_error = {
+        "error_message": "InstanceNumber is duplicated for values:[1]",
+        "revalidate": False
+    }
+    assert error_list == [expected_error]
+
+    error_list = check_instance_number_uniqueness(dcm_dict_list[:1])
+    assert not error_list
+
+
+def test_check_missing_slices_log_warning_if_not_enough_slices(caplog):
+    dcm_dict_list = [{'path': 'path0', 'header': {'SliceLocation': 1}},
+                     {'path': 'path1', 'header': {'SliceLocation': 2}}]
+    with caplog.at_level(logging.INFO):
+        _ = check_missing_slices(dcm_dict_list)
+        assert caplog.records[0].levelname == 'WARNING'
+        assert 'Small number of images in sequence.' in caplog.records[0].message
+
+
+def test_check_mising_slices_from_slice_location():
+    dcm_dict_list = []
+    for s in range(20):
+        dcm_dict_list.append({'path': f'path{s}',
+                              'header': {'SliceLocation': s,
+                                         'SequenceName': 'S1',
+                                         'ImageType': 'Whatever'}
+                              })
+
+    error_list = check_missing_slices(dcm_dict_list)
+    assert not error_list
+
+    # Popping one slice raises an error
+    _ = dcm_dict_list.pop(10)
+    error_list = check_missing_slices(dcm_dict_list)
+    assert error_list
+
+
+def test_check_mising_slices_from_ImagePositionPatient():
+    dcm_dict_list = []
+    for s in range(20):
+        dcm_dict_list.append({'path': f'path{s}',
+                              'header': {'SequenceName': 'S1',
+                                         'ImageType': 'Whatever',
+                                         'ImageOrientationPatient': '[0, 1, 0, 1, 0, 1]',
+                                         'ImagePositionPatient': f'[0, 0, {s}]'}
+                              })
+
+    error_list = check_missing_slices(dcm_dict_list)
+    assert not error_list
+
+    # Popping one slice raises an error
+    _ = dcm_dict_list.pop(10)
+    error_list = check_missing_slices(dcm_dict_list)
+    assert error_list
+
 
 
 def test_get_validation_error_dict_enum():
@@ -119,3 +201,5 @@ def test_validate_against_template():
     }
     error_list = validate_against_template(test_dict, template)
     assert len(error_list) == 4
+
+
