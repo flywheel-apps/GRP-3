@@ -408,12 +408,12 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
         zip = zipfile.ZipFile(file_path)
         tmp_dir = tempfile.TemporaryDirectory().name
         zip.extractall(path=tmp_dir)
-        dcm_path_list = list(map(lambda x: os.path.join(tmp_dir, x), os.listdir(tmp_dir)))
+        dcm_path_list = [os.path.join(tmp_dir, p) for p in zip.namelist()]
     else:
         log.info('Not a zip. Attempting to read %s directly' % os.path.basename(file_path))
         dcm_path_list = [file_path]
 
-    # Get list of Dicom data dict (with keys path, size, header)
+    # Get list of processsable Dicom data dict (with keys path, size, header)
     dcm_dict_list = []
     for dcm_path in dcm_path_list:
         res = get_dcm_data_dict(dcm_path, force=force)
