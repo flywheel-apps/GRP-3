@@ -186,6 +186,7 @@ def check_missing_slices(dcm_dict_list):
         return True
 
     # Groups dcm_dict_list by SequenceName
+    dcm_dict_list = [el for el in dcm_dict_list if el.get('header')]
     dcm_dict_list_grouped = itertools.groupby(dcm_dict_list, key=lambda x: x['header'].get('SequenceName'))
     sequences_group = [(el[0], list(el[1])) for el in dcm_dict_list_grouped]
     sequences = list(zip(sequences_group))[0]
@@ -223,7 +224,10 @@ def check_instance_number_uniqueness(dcm_dict_list):
     Returns:
         list: List of errors.
     """
-    data = [{'path': el['path'], 'InstanceNumber': el['header'].get('InstanceNumber')} for el in dcm_dict_list]
+    data = []
+    for el in dcm_dict_list:
+        if el.get('header'):
+            data.append({'path': el['path'], 'InstanceNumber': el['header'].get('InstanceNumber')})
     df = pd.DataFrame(data)
     error_list = []
     if 'InstanceNumber' in df:
