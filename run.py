@@ -394,9 +394,9 @@ def get_dcm_data_dict(dcm_path, force=False):
             dcm = pydicom.dcmread(dcm_path, force=force, stop_before_pixels=True)
             res['header'] = get_pydicom_header(dcm)
         except Exception:
-            log.warning('Failed to parse %s. Skipping.', dcm_path)
+            log.warning('Failed to parse %s. Skipping.', os.path.basename(dcm_path))
     else:
-        log.warning('% is empty. Skipping.', dcm_path)
+        log.warning('%s is empty. Skipping.', os.path.basename(dcm_path))
     return res
 
 
@@ -413,10 +413,12 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
         log.info('Not a zip. Attempting to read %s directly' % os.path.basename(file_path))
         dcm_path_list = [file_path]
 
-    # Get list of dicom data dict (with keys path, size, header)
+    # Get list of Dicom data dict (with keys path, size, header)
     dcm_dict_list = []
     for dcm_path in dcm_path_list:
-        dcm_dict_list.append(get_dcm_data_dict(dcm_path, force=force))
+        res = get_dcm_data_dict(dcm_path, force=force)
+        if res.get('header'):
+            dcm_dict_list.append(res)
 
     # Load a representative dcm file
     # Currently: not 0-byte file and SOPClassUID not Raw Data Storage unless that the only file
@@ -431,14 +433,7 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
                 log.warning('SOPClassUID=Raw Data Storage for %s. Skipping', it['path'])
                 continue
             else:
-                try:
-                    dcm = pydicom.dcmread(it['path'], force=force)
-                    break
-                except InvalidDicomError:
-                    log.warning('Failed to read dicom %s with force=%s. Skipping', it['path'], force)
-                    continue
-        else:
-            log.warning('File %s has %s byte size. Skipping', it['path'], force)
+                dcm = pydicom.dcmread(it['path'], force=force)
     if not dcm:
         log.warning('No dcm file found to be parsed!!!')
         os.sys.exit(1)
