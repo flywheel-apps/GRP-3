@@ -2,6 +2,7 @@
 
 import os
 import re
+import sys
 import json
 import pytz
 import pydicom
@@ -13,10 +14,12 @@ import zipfile
 import datetime
 import nibabel
 import tempfile
+from pathlib import Path
 
 from utils.dicom import dicom_archive
 from utils.update_file_info import get_file_dict_and_update_metadata_json
-from utils.validation import validate_against_rules, validate_against_template
+from utils.validation import validate_against_rules, validate_against_template, dump_validation_error_file, \
+    check_file_is_not_empty
 
 logging.basicConfig()
 log = logging.getLogger('grp-3')
@@ -387,28 +390,52 @@ def get_dcm_data_dict(dcm_path, force=False):
     file_size = os.path.getsize(dcm_path)
     res = {
         'path': dcm_path,
-        'size': file_size
+        'size': file_size,
+        'force': force,
+        'pydicom_exception': False,
+        'header': None
     }
     if file_size > 0:
         try:
             dcm = pydicom.dcmread(dcm_path, force=force, stop_before_pixels=True)
             res['header'] = get_pydicom_header(dcm)
         except Exception:
-            log.warning('Failed to parse %s. Skipping.', os.path.basename(dcm_path))
-    else:
-        log.warning('%s is empty. Skipping.', os.path.basename(dcm_path))
+            log.exception('Pydicom raised exception reading dicom file %s', os.path.basename(dcm_path))
+            res['pydicom_exception'] = True
     return res
 
 
 def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
 
+    error_file_name = os.path.basename(file_path) + '.error.log.json'
+    error_filepath = os.path.join(outbase, error_file_name)
+    validation_errors = list()
+
+    # check that input file is not empty
+    validation_errors += check_file_is_not_empty(file_path)
+    if validation_errors:
+        log.warning('File %s is empty which warrants further processing. Logging to error.json and Exiting.', file_path)
+        dump_validation_error_file(error_filepath, validation_errors)
+        sys.exit(1)
+
     # Build list of dcm files
     if zipfile.is_zipfile(file_path):
-        log.info('Extracting %s ' % os.path.basename(file_path))
-        zip = zipfile.ZipFile(file_path)
-        tmp_dir = tempfile.TemporaryDirectory().name
-        zip.extractall(path=tmp_dir)
-        dcm_path_list = [os.path.join(tmp_dir, p) for p in zip.namelist()]
+        try:
+            log.info('Extracting %s ' % os.path.basename(file_path))
+            zip = zipfile.ZipFile(file_path)
+            tmp_dir = tempfile.TemporaryDirectory().name
+            zip.extractall(path=tmp_dir)
+            dcm_path_list = Path(tmp_dir).rglob('*')
+            # keep only files
+            dcm_path_list = [str(path) for path in dcm_path_list if os.path.isfile(path)]
+        except Exception:
+            log.warning('Zip file %s is corrupted. Logging to error.json and Exiting.', file_path)
+            error_dict = {
+                "error_message": "Zip corrupted",
+                "revalidate": False
+            }
+            dump_validation_error_file(error_filepath, [error_dict])
+            sys.exit(1)
     else:
         log.info('Not a zip. Attempting to read %s directly' % os.path.basename(file_path))
         dcm_path_list = [file_path]
@@ -421,22 +448,34 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
     # Load a representative dcm file
     # Currently: not 0-byte file and SOPClassUID not Raw Data Storage unless that the only file
     dcm = None
-    for i, it in enumerate(dcm_dict_list):
-        if it['size'] > 0 and it.get('header'):
+    log.info('Selecting a valid Dicom file for parsing')
+    for idx, dcm_dict_el in enumerate(dcm_dict_list):
+        if dcm_dict_el['size'] > 0 and dcm_dict_el['header'] and not dcm_dict_el['pydicom_exception']:
             # Here we check for the Raw Data Storage SOP Class, if there
             # are other pydicom files in the zip then we read the next one,
             # if this is the only class of pydicom in the file, we accept
             # our fate and move on.
-            if it['header'].get('SOPClassUID') == 'Raw Data Storage' and i < len(dcm_dict_list) - 1:
-                log.warning('SOPClassUID=Raw Data Storage for %s. Skipping', it['path'])
+            if dcm_dict_el['header'].get('SOPClassUID') == 'Raw Data Storage' and idx < len(dcm_dict_list) - 1:
+                log.warning('SOPClassUID=Raw Data Storage for %s. Skipping', dcm_dict_el['path'])
                 continue
             else:
-                dcm = pydicom.dcmread(it['path'], force=force)
+                # Note: no need to try/except, all files have already been open when calling get_dcm_data_dict
+                dcm_path = dcm_dict_el['path']
+                dcm = pydicom.dcmread(dcm_path, force=force)
+        elif dcm_dict_el['size'] < 1:
+            log.warning('%s is empty. Skipping.', os.path.basename(dcm_dict_el['path']))
+        elif dcm_dict_el['pydicom_exception']:
+            log.warning('Pydicom raised on reading %s. Skipping.', os.path.basename(dcm_dict_el['path']))
     if not dcm:
-        log.warning('No dcm file found to be parsed!!!')
-        os.sys.exit(1)
+        log.warning('No Dicom file found to be parsed!!!')
+        error_dict = {
+            "error_message": "No Dicom file found to be parsed",
+            "revalidate": False
+        }
+        dump_validation_error_file(error_filepath, [error_dict])
+        sys.exit(1)
     else:
-        log.info('%s will be used for metadata extraction', os.path.basename(it['path']))
+        log.info('%s will be used for metadata extraction', os.path.basename(dcm_path))
 
     # Build metadata
     metadata = {}
@@ -526,9 +565,7 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
             pydicom_file['info']['header']['dicom']['CSAHeader'] = csa_header
 
     # Validate header data against json schema template
-    error_file_name = os.path.basename(file_path) + '.error.log.json'
-    error_filepath = os.path.join(outbase, error_file_name)
-    validation_errors = validate_against_template(pydicom_file['info']['header']['dicom'], json_template)
+    validation_errors += validate_against_template(pydicom_file['info']['header']['dicom'], json_template)
 
     # Validate DICOM header df against file rules
     rule_errors = validate_against_rules(dcm_dict_list)
@@ -538,8 +575,7 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
 
     # Write error file
     if validation_errors:
-        with open(error_filepath, 'w') as outfile:
-            json.dump(validation_errors, outfile, separators=(', ', ': '), sort_keys=True, indent=4)
+        dump_validation_error_file(error_filepath, validation_errors)
     if validation_errors:
         metadata['acquisition']['tags'] = ['error']
 

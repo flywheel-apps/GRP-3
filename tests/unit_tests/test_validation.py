@@ -1,17 +1,18 @@
-import json
-import pytest
+import os
 import logging
+from tempfile import NamedTemporaryFile
 
 import jsonschema
 
 from utils.validation import get_validation_error_dict, validate_against_template, validate_against_rules, \
-    check_0_byte_file, check_instance_number_uniqueness, check_missing_slices
+    check_0_byte_files, check_instance_number_uniqueness, check_missing_slices, check_pydicom_exception, \
+    check_file_is_not_empty, dump_validation_error_file
 
 
 def test_check_0_byte_file():
     dcm_dict_list = [{'size': 0, 'path': 'path0'}, {'size': 1, 'path': 'path1'}]
 
-    error_list = check_0_byte_file(dcm_dict_list)
+    error_list = check_0_byte_files(dcm_dict_list)
 
     assert len(error_list) == 1
     expected_error = {
@@ -20,8 +21,56 @@ def test_check_0_byte_file():
     }
     assert error_list == [expected_error]
 
-    error_list = check_0_byte_file(dcm_dict_list[1:])
+    error_list = check_0_byte_files(dcm_dict_list[1:])
     assert not error_list
+
+
+def test_check_corrupted_dicom():
+    dcm_dict_list = [{'path': 'path0', 'pydicom_exception': False, 'force': False}]
+    error_list = check_pydicom_exception(dcm_dict_list)
+    assert len(error_list) == 0
+
+    dcm_dict_list = [{'path': 'path0', 'pydicom_exception': False, 'force': True}]
+    error_list = check_pydicom_exception(dcm_dict_list)
+    assert len(error_list) == 0
+
+    dcm_dict_list = [{'path': 'path0', 'pydicom_exception': True, 'force': True}]
+    error_list = check_pydicom_exception(dcm_dict_list)
+    assert len(error_list) == 1
+    expected_error = {
+        'error_message': 'Pydicom raised an exception with force=True for file: path0',
+        'revalidate': False
+    }
+    assert error_list == [expected_error]
+
+    dcm_dict_list = [{'path': 'path0', 'pydicom_exception': True, 'force': False}]
+    error_list = check_pydicom_exception(dcm_dict_list)
+    assert len(error_list) == 1
+    expected_error = {
+        'error_message': 'Dicom signature not found in: path0. Try running gear with force=True',
+        'revalidate': False
+    }
+    assert error_list == [expected_error]
+
+
+def test_check_file_is_not_empty():
+    with NamedTemporaryFile() as tempfile:
+        with open(tempfile.name, 'w') as fp:
+            pass
+        error_list = check_file_is_not_empty(tempfile.name)
+        assert len(error_list) == 1
+        expected_error = {
+            'error_message': f'File is empty: {tempfile.name}',
+            'revalidate': False
+        }
+        assert error_list == [expected_error]
+
+
+def test_dump_validation_error():
+    validation_error = ['Test']
+    with NamedTemporaryFile() as tmpfile:
+        dump_validation_error_file(tmpfile.name, validation_error)
+        assert os.path.getatime(tmpfile.name) > 0
 
 
 def test_check_instance_number_uniqueness():
@@ -84,7 +133,6 @@ def test_check_mising_slices_from_ImagePositionPatient():
     _ = dcm_dict_list.pop(10)
     error_list = check_missing_slices(dcm_dict_list)
     assert error_list
-
 
 
 def test_get_validation_error_dict_enum():

@@ -3,6 +3,7 @@ from collections import Counter
 import itertools
 import logging
 import os
+import json
 
 
 import jsonschema
@@ -15,10 +16,16 @@ log = logging.getLogger(__name__)
 DEFAULT_RULE_LIST = [
     'check_instance_number_uniqueness',
     'check_missing_slices',
-    'check_0_byte_file'
+    'check_0_byte_files',
+    'check_pydicom_exception'
 ]
 
 MIN_NUM_SLICES_TO_CHECK_MISSING_SLICES = 10
+
+
+def dump_validation_error_file(error_filepath, validation_errors):
+    with open(error_filepath, 'w') as outfile:
+        json.dump(validation_errors, outfile, separators=(', ', ': '), sort_keys=True, indent=4)
 
 
 def get_rule_function(func_name):
@@ -48,6 +55,17 @@ def get_most_frequent(array, rounding=None):
         if most_com[1] > size/2:
             return most_com[0]
     return None
+
+
+def check_file_is_not_empty(file_path):
+    validation_errors = []
+    if not os.path.getsize(file_path) > 1:
+        error_dict = {
+            "error_message": "File is empty: {}".format(file_path),
+            "revalidate": False
+        }
+        validation_errors.append(error_dict)
+    return validation_errors
 
 
 def check_missing_slices(dcm_dict_list):
@@ -243,7 +261,7 @@ def check_instance_number_uniqueness(dcm_dict_list):
     return error_list
 
 
-def check_0_byte_file(dcm_dict_list):
+def check_0_byte_files(dcm_dict_list):
     """Check if dcm file is 0-byte size
 
     Args:
@@ -259,6 +277,32 @@ def check_0_byte_file(dcm_dict_list):
                 "error_message": "Dicom file is empty: {}".format(os.path.basename(el['path'])),
                 "revalidate": False
             }
+            error_list.append(error_dict)
+    return error_list
+
+
+def check_pydicom_exception(dcm_dict_list):
+    """Check if pydicom raised exception
+
+    Args:
+        dcm_dict_list (list): List of dict containing dicom data with keys: 'path', 'size', 'header'.
+
+    Returns:
+        list: List of errors.
+    """
+    error_list = []
+    for el in dcm_dict_list:
+        if el['pydicom_exception']:
+            if el['force']:
+                error_dict = {
+                    "error_message": "Pydicom raised an exception with force=True for file: {}".format(os.path.basename(el['path'])),
+                    "revalidate": False
+                }
+            else:
+                error_dict = {
+                    "error_message": "Dicom signature not found in: {}. Try running gear with force=True".format(os.path.basename(el['path'])),
+                    "revalidate": False
+                }
             error_list.append(error_dict)
     return error_list
 
