@@ -6,7 +6,8 @@ import copy
 
 from pydicom.data import get_testdata_files
 
-from run import dicom_to_json, validate_timezone, get_seq_data, walk_dicom, fix_type_based_on_dicom_vm
+from run import dicom_to_json, validate_timezone, get_seq_data, walk_dicom, fix_type_based_on_dicom_vm, \
+    get_pydicom_header
 
 
 def test_dicom_to_json_no_patientname():
@@ -57,3 +58,12 @@ def test_fix_type_based_on_dicom_vm():
     header = {'DirectoryRecordSequence': [{'ImageType': 'Localizer'}]}
     fix_type_based_on_dicom_vm(header)
     assert isinstance(header['DirectoryRecordSequence'][0]['ImageType'], list)
+
+
+def test_get_pydicom_header_on_a_real_dicom_and_check_a_few_types():
+    test_dicom_path = get_testdata_files('MR_small.dcm')[0]
+    dcm = pydicom.read_file(test_dicom_path)
+    header = get_pydicom_header(dcm)
+    assert isinstance(header['EchoNumbers'], list)
+    assert isinstance(header['ImageType'], list)
+    assert not isinstance(header['SOPClassUID'])
