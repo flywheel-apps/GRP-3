@@ -302,18 +302,18 @@ def walk_dicom(dcm):
 
 
 def fix_type_based_on_dicom_vm(header):
-    for k, v in header.items():
+    for key, val in header.items():
         try:
-            vr, vm, _, _, _ = DicomDictionary.get(Tag(k))
+            vr, vm, _, _, _ = DicomDictionary.get(Tag(key))
         except ValueError:
             continue
 
         if vr != 'SQ':
-            if vm != '1' and not isinstance(v, list): # anything else is a list
-                header[k] = [v]
+            if vm != '1' and not isinstance(val, list): # anything else is a list
+                header[key] = [val]
         else:
-            for ds in v:
-                fix_type_based_on_dicom_vm(ds)
+            for dataset in val:
+                fix_type_based_on_dicom_vm(dataset)
 
 
 def get_pydicom_header(dcm):
