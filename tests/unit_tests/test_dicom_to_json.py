@@ -66,4 +66,4 @@ def test_get_pydicom_header_on_a_real_dicom_and_check_a_few_types():
     header = get_pydicom_header(dcm)
     assert isinstance(header['EchoNumbers'], list)
     assert isinstance(header['ImageType'], list)
-    assert not isinstance(header['SOPClassUID'])
+    assert not isinstance(header['SOPClassUID'], list)
