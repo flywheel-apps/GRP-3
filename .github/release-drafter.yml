@@ -3,7 +3,7 @@ template: |
 
   ## What's Changed
 
-  _[IF PRs TITLE IS NOT EXPLICIT ENOUGH, ADD DETAILS]_
+  _[IF PR'S TITLE IS NOT EXPLICIT ENOUGH, ADD DETAILS TO IT]_
   $CHANGES
 
   ## Impact On Gear Outputs
