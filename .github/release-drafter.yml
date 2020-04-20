@@ -1,4 +1,12 @@
 template: |
   [Add summary description of what changed]
-  ## What’s Changed
+
+  ## What's Changed
+
+  [If PRs title is not explicit enough, please edit with more details]
   $CHANGES
+
+  ## Impact on Outputs
+
+  [List how the structure and/or the values of the gear outputs (e.g. files and metadata)
+  are impacted by the changes]
