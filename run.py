@@ -6,8 +6,7 @@ import sys
 import json
 import pytz
 import pydicom
-from pydicom.datadict import DicomDictionary
-from pydicom.tag import Tag
+from pydicom.datadict import DicomDictionary, tag_for_keyword
 import string
 import tzlocal
 import logging
@@ -302,18 +301,22 @@ def walk_dicom(dcm):
 
 
 def fix_type_based_on_dicom_vm(header):
+    exc_keys = []
     for key, val in header.items():
         try:
-            vr, vm, _, _, _ = DicomDictionary.get(Tag(key))
-        except ValueError:
+            vr, vm, _, _, _ = DicomDictionary.get(tag_for_keyword(key))
+        except (ValueError, TypeError):
+            exc_keys.append(key)
             continue
 
         if vr != 'SQ':
-            if vm != '1' and not isinstance(val, list): # anything else is a list
+            if vm != '1' and not isinstance(val, list):  # anything else is a list
                 header[key] = [val]
         else:
             for dataset in val:
                 fix_type_based_on_dicom_vm(dataset)
+    if len(exc_keys) > 0:
+        log.warning('%s Dicom data elements were not type fixed based on VM', len(exc_keys))
 
 
 def get_pydicom_header(dcm):

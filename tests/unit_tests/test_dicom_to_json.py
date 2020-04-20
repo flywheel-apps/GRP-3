@@ -46,7 +46,7 @@ def test_get_seq_data():
     assert 'DimensionOrganizationUID' in res[0]['DimensionIndexSequence'][0]
 
 
-def test_fix_type_based_on_dicom_vm():
+def test_fix_type_based_on_dicom_vm(caplog):
     header = {'ImageType': 'Localizer'}
     fix_type_based_on_dicom_vm(header)
     assert isinstance(header['ImageType'], list)
@@ -58,6 +58,11 @@ def test_fix_type_based_on_dicom_vm():
     header = {'DirectoryRecordSequence': [{'ImageType': 'Localizer'}]}
     fix_type_based_on_dicom_vm(header)
     assert isinstance(header['DirectoryRecordSequence'][0]['ImageType'], list)
+
+    # Log warning if keyword not found in pydicom dictionary
+    header = {'NotATag': 'Localizer'}
+    fix_type_based_on_dicom_vm(header)
+    assert '1 Dicom data elements were not type fixed based on VM' in caplog.messages[0]
 
 
 def test_get_pydicom_header_on_a_real_dicom_and_check_a_few_types():
