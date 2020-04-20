@@ -1,0 +1,4 @@
+template: |
+  [Add summary description of what changed]
+  ## What’s Changed
+  $CHANGES
