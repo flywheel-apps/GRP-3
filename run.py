@@ -2,22 +2,24 @@
 
 import os
 import re
+import sys
 import json
-import jsonschema
 import pytz
 import pydicom
+from pydicom.errors import InvalidDicomError
 import string
 import tzlocal
 import logging
 import zipfile
 import datetime
 import nibabel
-import pandas as pd
-import numpy as np
 import tempfile
+from pathlib import Path
 
 from utils.dicom import dicom_archive
 from utils.update_file_info import get_file_dict_and_update_metadata_json
+from utils.validation import validate_against_rules, validate_against_template, dump_validation_error_file, \
+    check_file_is_not_empty
 
 logging.basicConfig()
 log = logging.getLogger('grp-3')
@@ -369,252 +371,7 @@ def get_csa_header(dcm):
     return header
 
 
-def get_validation_error_dict(validation_error, file_dict_key='info.header.dicom'):
-    """
-    Generates a validation error dictionary to be appended to error list.
-    Error list is consumed by GRP-2
 
-    :param file_dict_key: period-delimited string denoting where the field that failed validation
-        is located on the flywheel file object. default = info.header.dicom
-    :type file_dict_key: str
-    :param validation_error: error generated when validating dictionary against template
-    :type validation_error: jsonschema.exceptions.ValidationError
-    :return:
-    """
-    error_dict = {
-        'error_type': validation_error.validator,
-        'error_message': validation_error.message,
-        'schema': validation_error.schema,
-        'item': None,
-        'error_value': None,
-        'revalidate': True
-    }
-    if validation_error.absolute_path:
-        # validation_error.absolute_path is a deque that represents the path to the field within the dict
-        item_deque = validation_error.absolute_path.copy()
-        item_deque.appendleft(file_dict_key)
-        # item is a period - delimited path to the field violating the template on the file object
-        error_dict['item'] = '.'.join([str(item) for item in item_deque])
-        error_dict['error_value'] = validation_error.instance
-    else:
-        error_dict['item'] = file_dict_key
-
-    return error_dict
-
-
-def validate_against_template(input_dict, template):
-    """
-    This is a function for validating a dictionary against a template. Given
-    an input_dict and a template object, it will create a JSON schema validator
-    and construct an object that is a list of error dictionaries. It will write a
-    JSON file to the specified error_log_path and return the validation_errors object as
-    well as log each error.message to log.errors
-
-    :param input_dict: a dictionary of DICOM header data to be validated
-    :param template: a template dictionary to validate against
-    :param error_log_path: the path to which to write error log JSON
-    :return: validation_errors, an object containing information on validation errors
-    """
-    try:
-        jsonschema.Draft7Validator.check_schema(template)
-    except Exception as e:
-        log.fatal(
-            'The json_template is invalid. Please make the correction and try again.'
-        )
-        log.exception(e)
-        os.sys.exit(1)
-
-    # Initialize json schema validator
-    validator = jsonschema.Draft7Validator(template)
-    # Initialize list object for storing validation errors
-    validation_errors = []
-    for error in sorted(validator.iter_errors(input_dict), key=str):
-        error_dict = get_validation_error_dict(error)
-        # Append individual error object to the return validation_errors object
-        validation_errors.append(error_dict)
-
-    return validation_errors
-
-
-def most_frequent_interval(intervals):
-    size = len(intervals)
-    for i in [3,2,1]:
-        list = [round(x,i) for x in intervals]
-        dict = {}
-        count, itm = 0, ''
-        for item in reversed(list):
-            dict[item] = dict.get(item, 0) + 1
-            if dict[item] >= count :
-                count, itm = dict[item], item
-        if count > size/2:
-            return(itm)
-    return None
-
-
-def check_missing_slices(df, this_sequence):
-    # holds any error messages related to missing slices
-    slice_error_list = []
-
-    # sequence_message is added to slice error message if we are dealing with multiple sequences
-    sequence_message = ""
-    if this_sequence != None and this_sequence != '':
-        sequence_message = ' (SequenceName is {}, in case there are multiple.)'.format(this_sequence)
-
-    # Holds all locations of slices
-    locations = []
-
-    ## First we check if acquisition is long enough to warrant slice interval checking (i.e. not localizers)
-    threshold = 10
-    if len(df) < threshold:
-        log.warning("Small number of images in sequence; slice interval checking will not be performed.{}".format(sequence_message))
-        return slice_error_list
-
-    ## Attempt to find locations via SliceLocation header
-    if all(elem in ['SliceLocation',  'ImageType'] for elem in df.columns):
-        df = df.dropna(subset=['SliceLocation', 'ImageType'])
-        # This line iterates through all SliceLocations in rows where LOCALIZER not in ImageType
-        for location in (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['SliceLocation']:
-            locations.append(location)
-
-    ## Attempt to find locations by ImageOrientationPatient and ImagePositionPatient headers
-    elif all(elem in ['ImageOrientationPatient', 'ImagePositionPatient', 'ImageType'] for elem in df.columns):
-
-        # DICOM headers annoyingly hold arrays as strings with puncuation
-        # This function is needed to turn that string into a real data structure
-        def string_to_array(input_str, expected_length):
-            s = input_str.replace('[', '')
-            s = s.replace(']','')
-            s = s.replace(',','')
-            s = s.replace('(','')
-            s = s.replace(')','')
-            arr = s.split()
-            return_arr = [float(x) for x in arr]
-            # If new array is not expected length, something's gone wrong
-            if(len(return_arr) == expected_length):
-                return return_arr
-            else:
-                return False
-
-        # Find normal vector of patient's orientation
-        # This line below finds the first ImageOrientationPatient where LOCALIZER not in ImageType
-
-        arr_str = (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['ImageOrientationPatient'][0]
-        arr = string_to_array(arr_str, expected_length=6)
-        v1 = v2 = normal = []
-        if(arr):
-            v1 = [arr[0], arr[1], arr[2]]
-            v2 = [arr[3], arr[4], arr[5]]
-            normal = np.cross(v2, v1)
-
-            # Slice locations are the position vectors times the normal vector from above
-            # This line iterates through all ImagePositionPatients in rows where LOCALIZER not in ImageType
-            for pos in (df.loc[~df['ImageType'].str.contains('LOCALIZER')])['ImageOrientationPatient']:
-                position = string_to_array(pos, expected_length=3)
-                if(position):
-                    location = np.dot(normal, position)
-                    locations.append(location)
-                else:
-                    locations = []
-                    log.warning("'ImagePositionPatient' string format error, cannot check for missing slices!")
-                    break
-
-        else:
-            log.warning("'ImageOrientationPatient' string format error, cannot check for missing slices!")
-
-    ## Unable to find locations
-    else:
-        log.warning("'SliceLocation' or 'ImageOrientationPatient' and 'ImagePositionPatient' missing, cannot check for missing slices!")
-
-
-    ## If locations is not empty (i.e. if nothing's gone wrong), sort it to get accurate intervals
-    ## Also if there's only one location found, we don't need to check intervals
-    if len(locations) > 1:
-        locations.sort()
-
-    ## Now we use the locations to measure intervals
-        intervals = []
-        for i, loc in enumerate(locations[1:]):
-            intervals.append(locations[i+1] - locations[i])
-
-        ## We want to ignore (i.e. remove) all intervals near 0 because they most likely come from duplicate images
-        intervals = [ elem for elem in intervals if elem > 0.001 ]
-
-        ## Get the most frequent interval in intervals
-        # If most_frequent_interval returns None, end function early
-        mode = most_frequent_interval(intervals)
-        if not mode:
-            error_dict = {
-                "error_message": "Inconsistent slice intervals; no common interval found!",
-                "revalidate": False
-            }
-            slice_error_list.append(error_dict)
-            return slice_error_list
-
-        tolerance = 0.2 * mode
-        abnormal_intervals = []
-
-        for i, val in enumerate(intervals):
-            if abs(mode-val) > tolerance:
-                rounded_val = round(val,3)
-                if rounded_val not in abnormal_intervals:
-                    abnormal_intervals.append(rounded_val)
-
-        if len(abnormal_intervals) > 0:
-            abnormal_intervals_str = str(abnormal_intervals).strip('[]')
-            error_dict = {
-                "error_message": "Inconsistent slice intervals. Majority are ~{}mm but intervals include {}.{}"\
-                    .format(mode, abnormal_intervals_str, sequence_message),
-                "revalidate": False
-            }
-            slice_error_list.append(error_dict)
-
-    return slice_error_list
-
-
-def validate_against_rules(df):
-    error_list = []
-    # Holds all unique sequence names in df (It's possible SequenceName is not a valid field in df)
-    sequences = []
-    # Holds the new frames after we separate df by SequenceName (i.e. this is a LIST of FRAMES)
-    new_frames = []
-
-    # Split df into multiple frames by SequenceName tag
-    if 'SequenceName' in df:
-        # Populate sequences list and then use it to populate new_frames
-        for sequence in df['SequenceName']:
-            if sequence not in sequences:
-                sequences.append(sequence)
-        for sequence in sequences:
-            new_frames.append((df.loc[df['SequenceName'] == sequence]))
-
-        # If there's only one sequence, we don't bother alerting the user and pass an empty string to check_missing_slices()
-        if len(sequences) == 1:
-            sequences = ['']
-        else:
-            log.warning("Multiple image sequences found in acquisition ({}), will check each individually".format(sequences))
-
-    # If SequenceName tag is not in the header, don't bother trying to split up df
-    else:
-        sequences = ['']
-        new_frames = [df]
-
-    # For every frame in new_frame, add any missing slice errors to error_list
-    for i, frame in enumerate(new_frames):
-        error_list.extend(check_missing_slices(frame, this_sequence=sequences[i]))
-
-
-    # Determine if InstanceNumber is unique (not duplicated)
-    if 'InstanceNumber' in df:
-        if df['InstanceNumber'].is_unique:
-            pass
-        else:
-            duplicated_values = df.loc[df['InstanceNumber'].duplicated(), 'InstanceNumber'].values
-            error_dict = {
-                "error_message": "InstanceNumber is duplicated for values:{}".format(duplicated_values),
-                "revalidate": False
-            }
-            error_list.append(error_dict)
-    return error_list
 
 
 def dicom_date_handler(dcm):
@@ -629,54 +386,97 @@ def dicom_date_handler(dcm):
     return dcm
 
 
-def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
-    dcm = None
-    # Extract the last file in the zip to /tmp/ and read it
-    if zipfile.is_zipfile(zip_file_path):
-        dcm_list = []
-        zip = zipfile.ZipFile(zip_file_path)
-        num_files = len(zip.namelist())
-        for n in range((num_files - 1), -1, -1):
-            dcm_path = zip.extract(zip.namelist()[n], '/tmp')
-            dcm_tmp = None
-            if os.path.isfile(dcm_path):
-                try:
-                    log.info('reading %s' % dcm_path)
-                    dcm_tmp = pydicom.read_file(dcm_path, force=force)
-                    # Here we check for the Raw Data Storage SOP Class, if there
-                    # are other pydicom files in the zip then we read the next one,
-                    # if this is the only class of pydicom in the file, we accept
-                    # our fate and move on.
-                    if dcm_tmp.get('SOPClassUID') == 'Raw Data Storage' and n != range((num_files - 1), -1, -1)[-1]:
-                        continue
-                    else:
-                        dcm_list.append(dcm_tmp)
-                except:
-                    pass
-            else:
-                log.warning('%s does not exist!' % dcm_path)
-        if dcm_list:
-            dcm = dcm_list[-1]
-    else:
-        log.info('Not a zip. Attempting to read %s directly' % os.path.basename(zip_file_path))
-        dcm = pydicom.read_file(zip_file_path, force=force)
-        dcm_list = [dcm]
-    if not dcm:
-        log.warning('dcm is empty!!!')
-        os.sys.exit(1)
+def get_dcm_data_dict(dcm_path, force=False):
+    file_size = os.path.getsize(dcm_path)
+    res = {
+        'path': dcm_path,
+        'size': file_size,
+        'force': force,
+        'pydicom_exception': False,
+        'header': None
+    }
+    if file_size > 0:
+        try:
+            dcm = pydicom.dcmread(dcm_path, force=force, stop_before_pixels=True)
+            res['header'] = get_pydicom_header(dcm)
+        except Exception:
+            log.exception('Pydicom raised exception reading dicom file %s', os.path.basename(dcm_path))
+            res['pydicom_exception'] = True
+    return res
 
-    # Create pandas object for comparing headers
-    df_list = []
-    for header in dcm_list:
-        tmp_dict = get_pydicom_header(header)
-        for key in tmp_dict:
-            if type(tmp_dict[key]) == list:
-                tmp_dict[key] = str(tmp_dict[key])
+
+def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
+
+    error_file_name = os.path.basename(file_path) + '.error.log.json'
+    error_filepath = os.path.join(outbase, error_file_name)
+    validation_errors = list()
+
+    # check that input file is not empty
+    validation_errors += check_file_is_not_empty(file_path)
+    if validation_errors:
+        log.warning('File %s is empty which warrants further processing. Logging to error.json and Exiting.', file_path)
+        dump_validation_error_file(error_filepath, validation_errors)
+        sys.exit(1)
+
+    # Build list of dcm files
+    if zipfile.is_zipfile(file_path):
+        try:
+            log.info('Extracting %s ' % os.path.basename(file_path))
+            zip = zipfile.ZipFile(file_path)
+            tmp_dir = tempfile.TemporaryDirectory().name
+            zip.extractall(path=tmp_dir)
+            dcm_path_list = Path(tmp_dir).rglob('*')
+            # keep only files
+            dcm_path_list = [str(path) for path in dcm_path_list if os.path.isfile(path)]
+        except Exception:
+            log.warning('Zip file %s is corrupted. Logging to error.json and Exiting.', file_path)
+            error_dict = {
+                "error_message": "Zip corrupted",
+                "revalidate": False
+            }
+            dump_validation_error_file(error_filepath, [error_dict])
+            sys.exit(1)
+    else:
+        log.info('Not a zip. Attempting to read %s directly' % os.path.basename(file_path))
+        dcm_path_list = [file_path]
+
+    # Get list of Dicom data dict (with keys path, size, header)
+    dcm_dict_list = []
+    for dcm_path in dcm_path_list:
+        dcm_dict_list.append(get_dcm_data_dict(dcm_path, force=force))
+
+    # Load a representative dcm file
+    # Currently: not 0-byte file and SOPClassUID not Raw Data Storage unless that the only file
+    dcm = None
+    log.info('Selecting a valid Dicom file for parsing')
+    for idx, dcm_dict_el in enumerate(dcm_dict_list):
+        if dcm_dict_el['size'] > 0 and dcm_dict_el['header'] and not dcm_dict_el['pydicom_exception']:
+            # Here we check for the Raw Data Storage SOP Class, if there
+            # are other pydicom files in the zip then we read the next one,
+            # if this is the only class of pydicom in the file, we accept
+            # our fate and move on.
+            if dcm_dict_el['header'].get('SOPClassUID') == 'Raw Data Storage' and idx < len(dcm_dict_list) - 1:
+                log.warning('SOPClassUID=Raw Data Storage for %s. Skipping', dcm_dict_el['path'])
+                continue
             else:
-                tmp_dict[key] = [tmp_dict[key]]
-        df_tmp = pd.DataFrame.from_dict(tmp_dict)
-        df_list.append(df_tmp)
-    df = pd.concat(df_list, ignore_index=True, sort=True)
+                # Note: no need to try/except, all files have already been open when calling get_dcm_data_dict
+                dcm_path = dcm_dict_el['path']
+                dcm = pydicom.dcmread(dcm_path, force=force)
+                break
+        elif dcm_dict_el['size'] < 1:
+            log.warning('%s is empty. Skipping.', os.path.basename(dcm_dict_el['path']))
+        elif dcm_dict_el['pydicom_exception']:
+            log.warning('Pydicom raised on reading %s. Skipping.', os.path.basename(dcm_dict_el['path']))
+    if not dcm:
+        log.warning('No Dicom file found to be parsed!!!')
+        error_dict = {
+            "error_message": "No Dicom file found to be parsed",
+            "revalidate": False
+        }
+        dump_validation_error_file(error_filepath, [error_dict])
+        sys.exit(1)
+    else:
+        log.info('%s will be used for metadata extraction', os.path.basename(dcm_path))
 
     # Build metadata
     metadata = {}
@@ -736,21 +536,13 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
 
     # File metadata
     pydicom_file = {}
-    pydicom_file['name'] = os.path.basename(zip_file_path)
+    pydicom_file['name'] = os.path.basename(file_path)
     pydicom_file['modality'] = format_string(dcm.get('Modality', 'MR'))
     pydicom_file['info'] = {
                                 "header": {
                                     "dicom": {}
                                 }
                             }
-    # Determine how many DICOM files are in directory
-    slice_number = len(df)
-
-    # Determine whether ImageOrientationPatient is constant
-    if hasattr(df, 'ImageOrientationPatient'):
-        uniqueiop = df.ImageOrientationPatient.is_unique
-    else:
-        uniqueiop = []
 
     # Acquisition metadata
     metadata['acquisition'] = {}
@@ -774,20 +566,17 @@ def dicom_to_json(zip_file_path, outbase, timezone, json_template, force=False):
             pydicom_file['info']['header']['dicom']['CSAHeader'] = csa_header
 
     # Validate header data against json schema template
-    error_file_name = os.path.basename(zip_file_path) + '.error.log.json'
-    error_filepath = os.path.join(outbase, error_file_name)
-    validation_errors = validate_against_template(pydicom_file['info']['header']['dicom'], json_template)
+    validation_errors += validate_against_template(pydicom_file['info']['header']['dicom'], json_template)
 
     # Validate DICOM header df against file rules
-    rule_errors = validate_against_rules(df)
+    rule_errors = validate_against_rules(dcm_dict_list)
 
     # Add error lists together
     validation_errors = validation_errors + rule_errors
 
     # Write error file
     if validation_errors:
-        with open(error_filepath, 'w') as outfile:
-            json.dump(validation_errors, outfile, separators=(', ', ': '), sort_keys=True, indent=4)
+        dump_validation_error_file(error_filepath, validation_errors)
     if validation_errors:
         metadata['acquisition']['tags'] = ['error']
 
