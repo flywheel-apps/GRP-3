@@ -462,6 +462,7 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
                 # Note: no need to try/except, all files have already been open when calling get_dcm_data_dict
                 dcm_path = dcm_dict_el['path']
                 dcm = pydicom.dcmread(dcm_path, force=force)
+                break
         elif dcm_dict_el['size'] < 1:
             log.warning('%s is empty. Skipping.', os.path.basename(dcm_dict_el['path']))
         elif dcm_dict_el['pydicom_exception']:
