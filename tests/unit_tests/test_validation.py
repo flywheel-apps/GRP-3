@@ -1,5 +1,7 @@
-import os
+import json
 import logging
+import os
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import jsonschema
@@ -7,6 +9,9 @@ import jsonschema
 from utils.validation import get_validation_error_dict, validate_against_template, validate_against_rules, \
     check_0_byte_files, check_instance_number_uniqueness, check_missing_slices, check_pydicom_exception, \
     check_file_is_not_empty, dump_validation_error_file
+
+
+DATA_ROOT = Path(__file__).parent.parent / 'data'
 
 
 def test_check_0_byte_file():
@@ -200,47 +205,12 @@ def test_get_validation_error_dict_anyof():
 
 
 def test_validate_against_template():
-    template = {
-        "properties": {
-            "ImageType": {
-                "description": "ImageType cannot be 'SCREEN SAVE'",
-                "type": "array",
-                "items": {
-                    "not": {
-                        "enum": [
-                            "SCREEN SAVE"
-                        ]
-                    }
-                }
-            },
-            "Modality": {
-                "description": "Modality must match 'MR' or 'CT' or 'PT'",
-                "enum": ["CT", "PT", "MR"],
-                "type": "string"
-            }
-        },
-        "type": "object",
-        "anyOf": [
-            {
-                "required": [
-                    "AcquisitionDate"
-                ]
-            },
-            {
-                "required": [
-                    "SeriesDate"
-                ]
-            },
-            {
-                "required": [
-                    "StudyDate"
-                ]
-            }
-        ],
-        "dependencies": {
-            "Units": ["PatientWeight"]
-        }
-    }
+    template_path = DATA_ROOT / 'test_jsonschema_template1.json'
+    error_list_path = DATA_ROOT / 'test_error_list.json'
+    with open(error_list_path) as err_data:
+        exp_error_list = json.load(err_data)
+    with open(template_path) as template_data:
+        template = json.load(template_data)
 
     test_dict = {
         'Modality': 'NM',
@@ -249,5 +219,20 @@ def test_validate_against_template():
     }
     error_list = validate_against_template(test_dict, template)
     assert len(error_list) == 4
+    assert error_list == exp_error_list
 
 
+def test_standard_template():
+    template_path = DATA_ROOT / 'test_jsonschema_template1.json'
+    error_list_path = DATA_ROOT / 'test_error_list.json'
+    with open(error_list_path) as err_data:
+        exp_error_list = json.load(err_data)
+    with open(template_path) as template_data:
+        template = json.load(template_data)
+    test_dict = {
+        'Modality': 'NM',
+        'ImageType': ['SCREEN SAVE'],
+        'Units': 'MLML'
+    }
+    error_list = validate_against_template(test_dict, template)
+    assert error_list == exp_error_list

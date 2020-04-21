@@ -1,0 +1,140 @@
+[
+    {
+        "error_message": "'NM' is not one of ['CT', 'PT', 'MR']", 
+        "error_type": "enum", 
+        "error_value": "NM", 
+        "item": "info.header.dicom.Modality", 
+        "revalidate": true, 
+        "schema": {
+            "description": "Modality must match 'MR' or 'CT' or 'PT'", 
+            "enum": [
+                "CT", 
+                "PT", 
+                "MR"
+            ], 
+            "type": "string"
+        }
+    }, 
+    {
+        "error_message": "'PatientWeight' is a dependency of 'Units'", 
+        "error_type": "dependencies", 
+        "error_value": null, 
+        "item": "info.header.dicom", 
+        "revalidate": true, 
+        "schema": {
+            "anyOf": [
+                {
+                    "required": [
+                        "AcquisitionDate"
+                    ]
+                }, 
+                {
+                    "required": [
+                        "SeriesDate"
+                    ]
+                }, 
+                {
+                    "required": [
+                        "StudyDate"
+                    ]
+                }
+            ], 
+            "dependencies": {
+                "Units": [
+                    "PatientWeight"
+                ]
+            }, 
+            "properties": {
+                "ImageType": {
+                    "description": "ImageType cannot be 'SCREEN SAVE'", 
+                    "items": {
+                        "not": {
+                            "enum": [
+                                "SCREEN SAVE"
+                            ]
+                        }
+                    }, 
+                    "type": "array"
+                }, 
+                "Modality": {
+                    "description": "Modality must match 'MR' or 'CT' or 'PT'", 
+                    "enum": [
+                        "CT", 
+                        "PT", 
+                        "MR"
+                    ], 
+                    "type": "string"
+                }
+            }, 
+            "type": "object"
+        }
+    }, 
+    {
+        "error_message": "{'Modality': 'NM', 'ImageType': ['SCREEN SAVE'], 'Units': 'MLML'} is not valid under any of the given schemas", 
+        "error_type": "anyOf", 
+        "error_value": null, 
+        "item": "info.header.dicom", 
+        "revalidate": true, 
+        "schema": {
+            "anyOf": [
+                {
+                    "required": [
+                        "AcquisitionDate"
+                    ]
+                }, 
+                {
+                    "required": [
+                        "SeriesDate"
+                    ]
+                }, 
+                {
+                    "required": [
+                        "StudyDate"
+                    ]
+                }
+            ], 
+            "dependencies": {
+                "Units": [
+                    "PatientWeight"
+                ]
+            }, 
+            "properties": {
+                "ImageType": {
+                    "description": "ImageType cannot be 'SCREEN SAVE'", 
+                    "items": {
+                        "not": {
+                            "enum": [
+                                "SCREEN SAVE"
+                            ]
+                        }
+                    }, 
+                    "type": "array"
+                }, 
+                "Modality": {
+                    "description": "Modality must match 'MR' or 'CT' or 'PT'", 
+                    "enum": [
+                        "CT", 
+                        "PT", 
+                        "MR"
+                    ], 
+                    "type": "string"
+                }
+            }, 
+            "type": "object"
+        }
+    }, 
+    {
+        "error_message": "{'enum': ['SCREEN SAVE']} is not allowed for 'SCREEN SAVE'", 
+        "error_type": "not", 
+        "error_value": "SCREEN SAVE", 
+        "item": "info.header.dicom.ImageType.0", 
+        "revalidate": true, 
+        "schema": {
+            "not": {
+                "enum": [
+                    "SCREEN SAVE"
+                ]
+            }
+        }
+    }
+]
