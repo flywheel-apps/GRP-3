@@ -11,7 +11,7 @@ from utils.validation import get_validation_error_dict, validate_against_templat
     check_file_is_not_empty, dump_validation_error_file
 
 
-DATA_ROOT = Path(__file__).parent.parent / 'data'
+DATA_ROOT = Path(__file__).parents[1] / 'data'
 
 
 def test_check_0_byte_file():
