@@ -1,0 +1,41 @@
+{
+  "properties": {
+    "ImageType": {
+      "description": "ImageType cannot be 'SCREEN SAVE'",
+      "type": "array",
+      "items": {
+        "not": {
+          "enum": [
+            "SCREEN SAVE"
+          ]
+        }
+      }
+    },
+    "Modality": {
+      "description": "Modality must match 'MR' or 'CT' or 'PT'",
+      "enum": ["CT", "PT", "MR"],
+      "type": "string"
+    }
+  },
+  "dependencies": {
+    "Units": ["PatientWeight"]
+  },
+  "type": "object",
+  "anyOf": [
+    {
+      "required": [
+        "AcquisitionDate"
+      ]
+    },
+    {
+      "required": [
+        "SeriesDate"
+      ]
+    },
+    {
+      "required": [
+        "StudyDate"
+      ]
+    }
+  ]
+}
