@@ -45,6 +45,10 @@ def get_most_frequent(array, rounding=None):
     Returns:
         The most frequent element or None
     """
+
+    if not array:
+        return None
+
     if not rounding:
         rounding = [3, 2, 1]
 
