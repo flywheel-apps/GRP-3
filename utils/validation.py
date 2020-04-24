@@ -125,8 +125,7 @@ def check_missing_slices(dcm_dict_list):
             # Find normal vector of patient's orientation
             # This line below finds the first ImageOrientationPatient where LOCALIZER not in ImageType
 
-            arr_str = (df.loc[~df['ImageType'].str.join('').str.contains('LOCALIZER')])['ImageOrientationPatient'][0]
-            arr = string_to_array(arr_str, expected_length=6)
+            arr = (df.loc[~df['ImageType'].str.join('').str.contains('LOCALIZER')])['ImageOrientationPatient'][0]
             if arr:
                 v1 = [arr[0], arr[1], arr[2]]
                 v2 = [arr[3], arr[4], arr[5]]
@@ -135,9 +134,8 @@ def check_missing_slices(dcm_dict_list):
                 # Slice locations are the position vectors times the normal vector from above
                 # This line iterates through all ImagePositionPatient in rows where LOCALIZER not in ImageType
                 for pos in (df.loc[~df['ImageType'].str.join('').str.contains('LOCALIZER')])['ImagePositionPatient']:
-                    position = string_to_array(pos, expected_length=3)
-                    if position:
-                        location = np.dot(normal, position)
+                    if pos:
+                        location = np.dot(normal, pos)
                         locations.append(location)
                     else:
                         locations = []
