@@ -127,8 +127,8 @@ def test_check_mising_slices_from_ImagePositionPatient():
         dcm_dict_list.append({'path': f'path{s}',
                               'header': {'SequenceName': 'S1',
                                          'ImageType': ['Whatever'],
-                                         'ImageOrientationPatient': '[0, 1, 0, 1, 0, 1]',
-                                         'ImagePositionPatient': f'[0, 0, {s}]'}
+                                         'ImageOrientationPatient': [0, 1, 0, 1, 0, 1],
+                                         'ImagePositionPatient': [0, 0, s]}
                               })
 
     error_list = check_missing_slices(dcm_dict_list)
