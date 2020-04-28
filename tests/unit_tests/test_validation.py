@@ -8,7 +8,7 @@ import jsonschema
 
 from utils.validation import get_validation_error_dict, validate_against_template, validate_against_rules, \
     check_0_byte_files, check_instance_number_uniqueness, check_missing_slices, check_pydicom_exception, \
-    check_file_is_not_empty, dump_validation_error_file
+    check_file_is_not_empty, dump_validation_error_file, get_most_frequent
 
 
 DATA_ROOT = Path(__file__).parents[1] / 'data'
@@ -236,3 +236,27 @@ def test_standard_template():
     }
     error_list = validate_against_template(test_dict, template)
     assert error_list == exp_error_list
+
+
+def test_get_most_frequent_returns_none_if_empty():
+    assert get_most_frequent([]) is None
+
+
+def test_get_most_frequent_returns_value_according_to_rounding():
+    arr = [1, 1, 1, 2, 2]
+    assert get_most_frequent(arr) == 1
+
+    arr = [1.0001, 1.0002, 1.0003, 2, 2]
+    assert get_most_frequent(arr) == 1.000
+
+    arr = [1.001, 1.002, 1.003, 2, 2]
+    assert get_most_frequent(arr) == 1.00
+
+    arr = [1.01, 1.02, 1.03, 2, 2]
+    assert get_most_frequent(arr) == 1.0
+
+    arr = [1.1, 1.2, 1.3, 2, 2, 2, 2]
+    assert get_most_frequent(arr) == 2
+
+    arr = [1.1, 1.2, 1.3, 2, 2]
+    assert get_most_frequent(arr, rounding=[0]) == 1
