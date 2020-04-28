@@ -49,6 +49,9 @@ def get_most_frequent(array, rounding=None):
     if not array:
         return None
 
+    if not isinstance(array, list):
+        raise TypeError('array must be of type list')
+
     if not rounding:
         rounding = [3, 2, 1]
 
