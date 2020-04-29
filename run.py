@@ -26,6 +26,8 @@ logging.basicConfig()
 log = logging.getLogger('grp-3')
 log.setLevel('INFO')
 
+DEFAULT_TME = '120000.00'
+
 
 def validate_dicom(path):
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -113,9 +115,9 @@ def get_timestamp(dcm, timezone):
         - SeriesDate/SeriesTime
         - AcquisitionDate/AcquisitionTime
         - AcquisitionDateTime
-        - StudyDate and Time defaults to 00:00
-        - SeriesDates and Time defaults to 00:00
-        - AcquisitionDate and Time defaults to 00:00
+        - StudyDate and Time defaults to DEFAULT_TME
+        - SeriesDates and Time defaults to DEFAULT_TME
+        - AcquisitionDate and Time defaults to DEFAULT_TME
 
     For acquisition date/time Dicom tag used by order of priority goes like a:
         - SeriesDate/SeriesTime
@@ -123,9 +125,9 @@ def get_timestamp(dcm, timezone):
         - AcquisitionDateTime
         - ContentDate/ContentTime
         - StudyDate/StudyTime
-        - SeriesDate and Time defaults to 00:00
-        - AcquisitionDate and Time defaults to 00:00
-        - StudyDate and Time defaults to 00:00
+        - SeriesDate and Time defaults to DEFAULT_TME
+        - AcquisitionDate and Time defaults to DEFAULT_TME
+        - StudyDate and Time defaults to DEFAULT_TME
     """
     # Study Date and Time, with precedence as below
     if getattr(dcm, 'StudyDate', None) and getattr(dcm, 'StudyTime', None):
@@ -143,13 +145,13 @@ def get_timestamp(dcm, timezone):
     # If only Dates are available setting time to 00:00
     elif getattr(dcm, 'StudyDate', None):
         study_date = dcm.StudyDate
-        study_time = '000000.00'
+        study_time = DEFAULT_TME
     elif getattr(dcm, 'SeriesDate', None):
         study_date = dcm.SeriesDate
-        study_time = '000000.00'
+        study_time = DEFAULT_TME
     elif getattr(dcm, 'AcquisitionDate', None):
         study_date = dcm.AcquisitionDate
-        study_time = '000000.00'
+        study_time = DEFAULT_TME
     else:
         study_date = None
         study_time = None
@@ -175,13 +177,13 @@ def get_timestamp(dcm, timezone):
     # If only Dates are available setting time to 00:00
     elif getattr(dcm, 'SeriesDate', None):
         acquisition_date = dcm.SeriesDate
-        acquisition_time = '000000.00'
+        acquisition_time = DEFAULT_TME
     elif getattr(dcm, 'AcquisitionDate', None):
         acquisition_date = dcm.AcquisitionDate
-        acquisition_time = '000000.00'
+        acquisition_time = DEFAULT_TME
     elif getattr(dcm, 'StudyDate', None):
         acquisition_date = dcm.StudyDate
-        acquisition_time = '000000.00'
+        acquisition_time = DEFAULT_TME
 
     else:
         acquisition_date = None

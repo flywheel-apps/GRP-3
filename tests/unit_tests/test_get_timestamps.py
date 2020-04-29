@@ -66,13 +66,13 @@ def test_get_timestamp_logic(timestamp_clean_dcm):
         dcm.SeriesDate = '20200102'
         timezone = pytz.timezone('UTC')
         session_timestamp, acquisition_timestamp = get_timestamp(dcm, timezone)
-        assert session_timestamp == '2020-01-01T00:00:00+00:00'
-        assert acquisition_timestamp == '2020-01-02T00:00:00+00:00'
+        assert session_timestamp == '2020-01-01T12:00:00+00:00'
+        assert acquisition_timestamp == '2020-01-02T12:00:00+00:00'
 
         # StudyDate
         dcm = pydicom.read_file(dcm_path)
         dcm.StudyDate = '20200101'
         timezone = pytz.timezone('UTC')
         session_timestamp, acquisition_timestamp = get_timestamp(dcm, timezone)
-        assert session_timestamp == '2020-01-01T00:00:00+00:00'
-        assert acquisition_timestamp == '2020-01-01T00:00:00+00:00'
+        assert session_timestamp == '2020-01-01T12:00:00+00:00'
+        assert acquisition_timestamp == '2020-01-01T12:00:00+00:00'
