@@ -1,8 +1,28 @@
 import pytest
+import os
+import shutil
 from pathlib import Path
 
 import pydicom
 from pydicom.data import get_testdata_files
+import tempfile
+
+DATA_ROOT = os.path.join(os.path.dirname(__file__), '..', 'data')
+DICOM_ROOT = os.path.join(DATA_ROOT, 'DICOM')
+
+
+@pytest.fixture(scope='function')
+def dicom_file():
+    def get_dicom_file(folder, filename):
+        fd, path = tempfile.mkstemp(suffix='.dcm')
+        os.close(fd)
+
+        src_path = os.path.join(DICOM_ROOT, folder, filename)
+        shutil.copy(src_path, path)
+
+        return path
+
+    return get_dicom_file
 
 
 @pytest.fixture(scope='function')

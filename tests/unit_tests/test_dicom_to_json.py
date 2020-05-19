@@ -5,9 +5,10 @@ import pydicom
 import copy
 
 from pydicom.data import get_testdata_files
+from pydicom import config
 
 from run import dicom_to_json, validate_timezone, get_seq_data, walk_dicom, fix_type_based_on_dicom_vm, \
-    get_pydicom_header
+    get_pydicom_header, fix_VM1_callback
 
 
 def test_dicom_to_json_no_patientname():
@@ -72,3 +73,14 @@ def test_get_pydicom_header_on_a_real_dicom_and_check_a_few_types():
     assert isinstance(header['EchoNumbers'], list)
     assert isinstance(header['ImageType'], list)
     assert not isinstance(header['SOPClassUID'], list)
+
+
+def test_fixVM1_fixed_VM_based_on_public_dict(dicom_file):
+    # invalid_seriesdescription.dcm has a
+    # SeriesDescription = 'Lung 2.5 venous\Axial.Ref CE  Axial' with causes pydicom
+    # to interpret it as an array
+    dicom_path = dicom_file('invalid', 'invalid_seriesdescription.dcm')
+    dcm = pydicom.dcmread(dicom_path)
+    assert dcm.SeriesDescription == ['Lung 2.5 venous', 'Axial.Ref CE  Axial']
+    walk_dicom(dcm, callbacks=[fix_VM1_callback])
+    assert dcm.SeriesDescription == r'Lung 2.5 venous\Axial.Ref CE  Axial'
