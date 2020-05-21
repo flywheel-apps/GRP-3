@@ -14,6 +14,8 @@ DICOM_ROOT = os.path.join(DATA_ROOT, 'DICOM')
 @pytest.fixture(scope='function')
 def dicom_file():
     def get_dicom_file(folder, filename):
+        # copying file to temp folder to allow for overwriting while preserving the
+        # original file
         fd, path = tempfile.mkstemp(suffix='.dcm')
         os.close(fd)
 
