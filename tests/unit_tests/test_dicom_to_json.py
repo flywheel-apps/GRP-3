@@ -60,6 +60,12 @@ def test_fix_type_based_on_dicom_vm(caplog):
     fix_type_based_on_dicom_vm(header)
     assert isinstance(header['DirectoryRecordSequence'][0]['ImageType'], list)
 
+    # test that fix_type_based_on_dicom_vm perserves type if VR=SQ but value is not
+    # of type list for whatever reason (e.g. dataelement is stored as OB)
+    header = {'CTDIPhantomTypeCodeSequence': b'whatever\\this\\is'}
+    fix_type_based_on_dicom_vm(header)
+    assert isinstance(header['CTDIPhantomTypeCodeSequence'], bytes)
+
     # Log warning if keyword not found in pydicom dictionary
     header = {'NotATag': 'Localizer'}
     fix_type_based_on_dicom_vm(header)
