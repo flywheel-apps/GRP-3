@@ -5,7 +5,6 @@ import pydicom
 import copy
 
 from pydicom.data import get_testdata_files
-from pydicom import config
 
 from run import dicom_to_json, validate_timezone, get_seq_data, walk_dicom, fix_type_based_on_dicom_vm, \
     get_pydicom_header, fix_VM1_callback
@@ -90,3 +89,14 @@ def test_fixVM1_fixed_VM_based_on_public_dict(dicom_file):
     assert dcm.SeriesDescription == ['Lung 2.5 venous', 'Axial.Ref CE  Axial']
     walk_dicom(dcm, callbacks=[fix_VM1_callback])
     assert dcm.SeriesDescription == r'Lung 2.5 venous\Axial.Ref CE  Axial'
+
+
+def test_fixVM1_fixed_VM_does_not_raised_on_unknown_tag(dicom_file):
+    dicom_path = dicom_file('invalid', 'invalid_seriesdescription.dcm')
+    dcm = pydicom.dcmread(dicom_path)
+    dcm[0x60000010].value = 512            # tag from the RepeatersDictionary
+    dcm.add_new(0x77550010, 'LO', 'test')  # adding a private element
+    # check not raising
+    fix_VM1_callback(dcm, dcm[0x77550010])
+    fix_VM1_callback(dcm, dcm[0x60000010])
+    assert True

@@ -6,7 +6,7 @@ import sys
 import json
 import pytz
 import pydicom
-from pydicom.datadict import DicomDictionary, tag_for_keyword
+from pydicom.datadict import DicomDictionary, tag_for_keyword, get_entry
 import string
 import tzlocal
 import logging
@@ -49,13 +49,16 @@ def fix_VM1_callback(dataset, data_element):
     Returns:
         pydicom.DataElement: An updated pydicom DataElement
     """
-    vr, vm, _, _, _ = DicomDictionary.get(data_element.tag)
-    # Check if it is a VR string
-    if vr not in ['UT', 'ST', 'LT', 'FL', 'FD', 'AT', 'OB', 'OW', 'OF', 'SL', 'SQ',
-                  'SS', 'UL', 'OB/OW', 'OW/OB', 'OB or OW', 'OW or OB', 'UN'] \
-            and 'US' not in vr:
-        if vm == '1' and hasattr(data_element, 'VM') and data_element.VM > 1:
-            data_element._value = '\\'.join(data_element.value)
+    try:
+        vr, vm, _, _, _ = get_entry(data_element.tag)
+        # Check if it is a VR string
+        if vr not in ['UT', 'ST', 'LT', 'FL', 'FD', 'AT', 'OB', 'OW', 'OF', 'SL', 'SQ',
+                      'SS', 'UL', 'OB/OW', 'OW/OB', 'OB or OW', 'OW or OB', 'UN'] \
+                and 'US' not in vr:
+            if vm == '1' and hasattr(data_element, 'VM') and data_element.VM > 1:
+                data_element._value = '\\'.join(data_element.value)
+    except KeyError:
+        pass
 
 
 def validate_dicom(path):
@@ -497,7 +500,7 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
             zip = zipfile.ZipFile(file_path)
             tmp_dir = tempfile.TemporaryDirectory().name
             zip.extractall(path=tmp_dir)
-            dcm_path_list = Path(tmp_dir).rglob('*')
+            dcm_path_list = sorted(Path(tmp_dir).rglob('*'))
             # keep only files
             dcm_path_list = [str(path) for path in dcm_path_list if os.path.isfile(path)]
         except Exception:
