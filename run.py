@@ -58,6 +58,8 @@ def fix_VM1_callback(dataset, data_element):
             if vm == '1' and hasattr(data_element, 'VM') and data_element.VM > 1:
                 data_element._value = '\\'.join(data_element.value)
     except KeyError:
+        # we are only fixing VM for tag supported by get_entry (i.e. DicomDictionary or
+        # RepeatersDictionary)
         pass
 
 

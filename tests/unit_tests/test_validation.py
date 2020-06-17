@@ -120,6 +120,19 @@ def test_check_mising_slices_from_slice_location():
     error_list = check_missing_slices(dcm_dict_list)
     assert error_list
 
+    # using ImageOrientationPatient and ImagePositionPatient headers
+    dcm_dict_list = []
+    for s in range(20):
+        dcm_dict_list.append({'path': f'path{s}',
+                              'header': {'ImageOrientationPatient': [1, 0, 0, 0, 1, 0],
+                                         'ImagePositionPatient': [0, 0, s],
+                                         'ImageType': ['Whatever']}
+                              })
+
+    _ = dcm_dict_list.pop(10)
+    error_list = check_missing_slices(dcm_dict_list)
+    assert error_list
+
 
 def test_check_mising_slices_from_ImagePositionPatient():
     dcm_dict_list = []
