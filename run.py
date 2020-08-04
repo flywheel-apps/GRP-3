@@ -272,6 +272,9 @@ def assign_type(s):
                 return [ format_string(x) for x in s if len(x) > 0 ]
     elif type(s) == float or type(s) == int:
         return s
+    elif type(s) == pydicom.uid.UID:
+        s = str(s)
+        return format_string(s)
     else:
         s = str(s)
         try:
