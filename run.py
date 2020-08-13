@@ -260,7 +260,7 @@ def assign_type(s):
     """
     Sets the type of a given input.
     """
-    if type(s) == pydicom.valuerep.PersonName or type(s) == pydicom.valuerep.PersonName3 or type(s) == pydicom.valuerep.PersonNameBase:
+    if type(s) == pydicom.valuerep.PersonName:
         return format_string(s)
     if type(s) == list or type(s) == pydicom.multival.MultiValue:
         try:
