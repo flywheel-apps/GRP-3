@@ -9,13 +9,16 @@ Usage:
 Run tests in a docker container.
 Options:
     -h, --help      Print this help and exit
+    -B, --no-build  Don't build the docker image (use existing)
+    -s, --shell     Drop into the container with bash instead of normal entry
     -- TEST_ARGS    Arguments passed to tests.sh
 "
 
 main() {
     BUILD_IMAGE=1
-    DOCKERFILE="Dockerfile"
+    DOCKERFILE="tests/Dockerfile"
     DOCKER_TAG="testing"
+    ENTRY_POINT="--entrypoint=/src/tests/bin/tests.sh"
     while [ $# -gt 0 ]; do
         case "$1" in
             -h|--help)
@@ -24,6 +27,9 @@ main() {
                 ;;
             -B|--no-build)
                 BUILD_IMAGE=
+                ;;
+            -s|--shell)
+                ENTRY_POINT="--entrypoint=/bin/bash"
                 ;;
             --)
                 shift
@@ -36,16 +42,53 @@ main() {
         shift
     done
 
-    DOCKER_IMAGE="flywheel/grp-1:${DOCKER_TAG}"
+    VER=$(cat manifest.json | jq -r '.version')
+    DOCKER_IMAGE_NAME=$(cat manifest.json | jq '.custom."gear-builder".image')
+    echo "DOCKER_IMAGE_NAME is" $DOCKER_IMAGE_NAME 
+    DOCKER_IMAGE_NAME=$( echo $DOCKER_IMAGE_NAME | tr -d '"' )
+    echo "DOCKER_IMAGE_NAME is" $DOCKER_IMAGE_NAME 
+
+    IFS=':'
+    read -a strarr <<< "$DOCKER_IMAGE_NAME"
+    echo ${strarr[0]}
+    IFS='/'
+    read -a strarr <<< "$strarr"
+    echo ${strarr[1]}
+    DOCKER_IMAGE="flywheel/${strarr}:${DOCKER_TAG}"
+    echo "DOCKER_IMAGE is $DOCKER_IMAGE"
+    IFS=''
+
 
     if [ "${BUILD_IMAGE}" == "1" ]; then
-        docker build -f "${DOCKERFILE}" -t "${DOCKER_IMAGE}" --target testing .
+
+        echo docker build -f Dockerfile -t "${DOCKER_IMAGE_NAME}" .
+
+        docker build -f Dockerfile -t "${DOCKER_IMAGE_NAME}" .
+
+        echo docker build -f "${DOCKERFILE}" \
+          --build-arg DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME} \
+          -t "${DOCKER_IMAGE}" .
+
+        docker build -f "${DOCKERFILE}" \
+          --build-arg DOCKER_IMAGE_NAME=${DOCKER_IMAGE_NAME} \
+          -t "${DOCKER_IMAGE}" .
+
     fi
+
+    echo docker run -it --rm \
+        --volume "$(pwd):/src" \
+        --volume "$HOME/.config/flywheel:/root/.config/flywheel" \
+        "${ENTRY_POINT}" \
+        "${DOCKER_IMAGE}" \
+        "$@"
 
     docker run -it --rm \
         --volume "$(pwd):/src" \
+        --volume "$HOME/.config/flywheel:/root/.config/flywheel" \
+        "${ENTRY_POINT}" \
         "${DOCKER_IMAGE}" \
-        bash /src/tests/bin/tests.sh "$@"
+        "$@"
+
 }
 
 main "$@"
