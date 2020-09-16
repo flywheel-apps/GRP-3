@@ -13,9 +13,63 @@ dicom is the DICOM file from which to parse, validate, and import metadata into 
 ### json_template (required)
 The json_template is a [JSON Schema](https://json-schema.org/understanding-json-schema/) template that specifies validation rules for DICOM header values. It supports all Draft7Validator-compatible JSON Schema syntax.
 
+Below is an [example template](tests/data/test_jsonschema_template1.json) used for testing. 
+
+In this example, the following is required of the DICOM:
+1. ImageType _not_ be a screen save.
+2. Modailty be either 'MR', 'CT' or 'PT'
+3. Has one or more of the following present and populated (AcquisitionDate, SeriesDate, StudyDate)
+
+```json
+{
+  "properties": {
+    "ImageType": {
+      "description": "ImageType cannot be 'SCREEN SAVE'",
+      "type": "array",
+      "items": {
+        "not": {
+          "enum": [
+            "SCREEN SAVE"
+          ]
+        }
+      }
+    },
+    "Modality": {
+      "description": "Modality must match 'MR' or 'CT' or 'PT'",
+      "enum": ["CT", "PT", "MR"],
+      "type": "string"
+    }
+  },
+  "dependencies": {
+    "Units": ["PatientWeight"]
+  },
+  "type": "object",
+  "anyOf": [
+    {
+      "required": [
+        "AcquisitionDate"
+      ]
+    },
+    {
+      "required": [
+        "SeriesDate"
+      ]
+    },
+    {
+      "required": [
+        "StudyDate"
+      ]
+    }
+  ]
+}
+```
+
+If any of these requirements are not met then the DICOM will fail validation and an error file will be generated (see Outputs section below for more information on that file).
+
 ### Manifest JSON for Inputs
 
-```"inputs": {
+```json
+    "inputs": {
     "dicom": {
       "base": "file",
       "description": "Dicom Archive",
