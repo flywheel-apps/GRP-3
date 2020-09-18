@@ -2,12 +2,18 @@ import os
 import tempfile
 
 import pydicom
-import copy
+import pytest
 
 from pydicom.data import get_testdata_files
+from flywheel_metadata.file.dicom.fixer import fw_pydicom_config
 
-from run import dicom_to_json, validate_timezone, get_seq_data, walk_dicom, fix_type_based_on_dicom_vm, \
-    get_pydicom_header, fix_VM1_callback
+from run import dicom_to_json, validate_timezone, get_pydicom_header, fix_type_based_on_dicom_vm
+
+
+@pytest.yield_fixture(scope="module", autouse=True)
+def fw_pydicom_config_fixture():
+    with fw_pydicom_config():
+        yield
 
 
 def test_dicom_to_json_no_patientname():
@@ -23,27 +29,13 @@ def test_dicom_to_json_no_patientname():
         assert os.path.isfile(metadata_path)
 
 
-def test_get_seq_data():
+def test_sequence_recursively_decoded():
     test_dicom_path = get_testdata_files('liver.dcm')[0]
     dcm = pydicom.read_file(test_dicom_path)
     dcm.decode()
-    res = get_seq_data(dcm.get('DimensionIndexSequence'), [])
-    assert isinstance(res, list)
-    assert len(res) == 2
-    assert 'DimensionOrganizationUID' in res[0]
-    assert 'DimensionOrganizationUID' in res[1]
-
-    # testing ignore_key filter
-    res = get_seq_data(dcm.get('DimensionIndexSequence'), ['DimensionOrganizationUID'])
-    assert 'DimensionOrganizationUID' not in res[0]
-
-    # testing recursivity
-    dcm = pydicom.read_file(test_dicom_path)
-    errors = walk_dicom(dcm)
-    assert errors == []
-    dcm['DimensionIndexSequence'][0].add_new(dcm['DimensionIndexSequence'].tag, 'SQ', copy.deepcopy(dcm.get('DimensionIndexSequence')))
-    res = get_seq_data(dcm.get('DimensionIndexSequence'), [])
-    assert 'DimensionOrganizationUID' in res[0]['DimensionIndexSequence'][0]
+    assert dcm['DimensionIndexSequence'].VM == 2
+    assert 'DimensionOrganizationUID' in dcm['DimensionIndexSequence'][0]
+    assert 'DimensionOrganizationUID' in dcm['DimensionIndexSequence'][1]
 
 
 def test_fix_type_based_on_dicom_vm(caplog):
@@ -76,27 +68,17 @@ def test_get_pydicom_header_on_a_real_dicom_and_check_a_few_types():
     dcm = pydicom.read_file(test_dicom_path)
     header = get_pydicom_header(dcm)
     assert isinstance(header['EchoNumbers'], list)
+    assert len(header['EchoNumbers']) == 1
     assert isinstance(header['ImageType'], list)
-    assert not isinstance(header['SOPClassUID'], list)
+    assert len(header['ImageType']) == 3
+    assert isinstance(header['SOPClassUID'], str)
 
 
-def test_fixVM1_fixed_VM_based_on_public_dict(dicom_file):
+def test_backslash_is_correctly_replaced(dicom_file):
     # invalid_seriesdescription.dcm has a
     # SeriesDescription = 'Lung 2.5 venous\Axial.Ref CE  Axial' with causes pydicom
     # to interpret it as an array
     dicom_path = dicom_file('invalid', 'invalid_seriesdescription.dcm')
     dcm = pydicom.dcmread(dicom_path)
-    assert dcm.SeriesDescription == ['Lung 2.5 venous', 'Axial.Ref CE  Axial']
-    walk_dicom(dcm, callbacks=[fix_VM1_callback])
-    assert dcm.SeriesDescription == r'Lung 2.5 venous\Axial.Ref CE  Axial'
-
-
-def test_fixVM1_fixed_VM_does_not_raised_on_unknown_tag(dicom_file):
-    dicom_path = dicom_file('invalid', 'invalid_seriesdescription.dcm')
-    dcm = pydicom.dcmread(dicom_path)
-    dcm[0x60000010].value = 512            # tag from the RepeatersDictionary
-    dcm.add_new(0x77550010, 'LO', 'test')  # adding a private element
-    # check not raising
-    fix_VM1_callback(dcm, dcm[0x77550010])
-    fix_VM1_callback(dcm, dcm[0x60000010])
-    assert True
+    header = get_pydicom_header(dcm)
+    assert header['SeriesDescription'] == 'Lung 2.5 venous/Axial.Ref CE  Axial'

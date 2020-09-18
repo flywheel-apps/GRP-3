@@ -6,7 +6,7 @@ import sys
 import json
 import pytz
 import pydicom
-from pydicom.datadict import DicomDictionary, tag_for_keyword, get_entry
+from pydicom.datadict import DicomDictionary, tag_for_keyword
 import string
 import tzlocal
 import logging
@@ -16,6 +16,7 @@ import nibabel
 import tempfile
 from pathlib import Path
 
+from flywheel_metadata.file.dicom.fixer import fw_pydicom_config
 
 from utils.dicom import dicom_archive
 from utils.update_file_info import get_file_dict_and_update_metadata_json
@@ -27,40 +28,6 @@ log = logging.getLogger('grp-3')
 log.setLevel('INFO')
 
 DEFAULT_TME = '120000.00'
-
-
-def fix_VM1_callback(dataset, data_element):
-    r"""Update the data element fixing VM based on public tag definition
-
-    This addresses the following none conformance for element with string VR having
-    a `\` in the their value which gets interpret as array by pydicom.
-    This function re-join string and is aimed to be used as callback.
-
-    From the DICOM Standard, Part 5, Section 6.2, for elements with a VR of LO, such as
-    Series Description: A character string that may be padded with leading and/or
-    spaces. The character code 5CH (the BACKSLASH "\" in ISO-IR 6) shall not be
-    present, as it is used as the delimiter between values in multi-valued data
-    elements. The string shall not have Control Characters except for ESC.
-
-    Args:
-        dataset (pydicom.DataSet): A pydicom DataSet
-        data_element (pydicom.DataElement): A pydicom DataElement from the DataSet
-
-    Returns:
-        pydicom.DataElement: An updated pydicom DataElement
-    """
-    try:
-        vr, vm, _, _, _ = get_entry(data_element.tag)
-        # Check if it is a VR string
-        if vr not in ['UT', 'ST', 'LT', 'FL', 'FD', 'AT', 'OB', 'OW', 'OF', 'SL', 'SQ',
-                      'SS', 'UL', 'OB/OW', 'OW/OB', 'OB or OW', 'OW or OB', 'UN'] \
-                and 'US' not in vr:
-            if vm == '1' and hasattr(data_element, 'VM') and data_element.VM > 1:
-                data_element._value = '\\'.join(data_element.value)
-    except KeyError:
-        # we are only fixing VM for tag supported by get_entry (i.e. DicomDictionary or
-        # RepeatersDictionary)
-        pass
 
 
 def validate_dicom(path):
@@ -291,66 +258,7 @@ def format_string(in_string):
     formatted = ''.join(filter(lambda x: x in string.printable, formatted))
     if len(formatted) == 1 and formatted == '?':
         formatted = None
-    return formatted#.encode('utf-8').strip()
-
-
-def get_seq_data(sequence, ignore_keys):
-    """Return list of nested dictionaries matching sequence
-
-    Args:
-        sequence (pydicom.Sequence): A pydicom sequence
-        ignore_keys (list): List of keys to ignore
-
-    Returns:
-        (list): list of nested dictionary matching sequence
-    """
-    res = []
-    for seq in sequence:
-        seq_dict = {}
-        for k, v in seq.items():
-            if not hasattr(v, 'keyword') or \
-                    (hasattr(v, 'keyword') and v.keyword in ignore_keys) or \
-                    (hasattr(v, 'keyword') and not v.keyword):  # keyword of type "" for unknown tags
-                continue
-            kw = v.keyword
-            if isinstance(v.value, pydicom.sequence.Sequence):
-                seq_dict[kw] = get_seq_data(v, ignore_keys)
-            elif isinstance(v.value, str):
-                seq_dict[kw] = format_string(v.value)
-            else:
-                seq_dict[kw] = assign_type(v.value)
-        res.append(seq_dict)
-    return res
-
-
-def walk_dicom(dcm, callbacks=None, recursive=True):
-    """Same as pydicom.DataSet.walk but with logging the exception instead of raising.
-
-    Args:
-        dcm (pydicom.DataSet): A pydicom.DataSet.
-        callbacks (list): A list of function to apply on each DataElement of the
-            DataSet (default = None).
-        recursive (bool): It True, walk the dicom recursively when encountering a SQ.
-
-    Returns:
-        list: List of errors
-    """
-    taglist = sorted(dcm._dict.keys())
-    errors = []
-    for tag in taglist:
-        try:
-            data_element = dcm[tag]
-            if callbacks:
-                for cb in callbacks:
-                    cb(dcm, data_element)
-            if recursive and tag in dcm and data_element.VR == "SQ":
-                sequence = data_element.value
-                for dataset in sequence:
-                    walk_dicom(dataset, callbacks, recursive=recursive)
-        except Exception as ex:
-            msg = f'With tag {tag} got exception: {str(ex)}'
-            errors.append(msg)
-    return errors
+    return formatted
 
 
 def fix_type_based_on_dicom_vm(header):
@@ -378,14 +286,6 @@ def fix_type_based_on_dicom_vm(header):
 
 def get_pydicom_header(dcm):
     # Extract the header values
-    # Load all dcm tags in memory and fix an issue found a LO VR with `\` in it (fix_VM1)
-    errors = walk_dicom(dcm, callbacks=[fix_VM1_callback], recursive=True)
-    # dcm.walk(fix_VM1, recursive=True)
-    if errors:
-        result = ''
-        for error in errors:
-            result += '\n  {}'.format(error)
-        log.warning(f'Errors found in walking dicom: {result}')
     header = {}
     exclude_tags = ['[Unknown]',
                     'PixelData',
@@ -413,7 +313,10 @@ def get_pydicom_header(dcm):
                     log.debug('No value found for tag: ' + tag)
 
             if (tag not in exclude_tags) and type(dcm.get(tag)) == pydicom.sequence.Sequence:
-                seq_data = get_seq_data(dcm.get(tag), exclude_tags)
+                seq_data = []
+                for elem in dcm.get(tag):
+                    seq_data.append(get_pydicom_header(elem))
+                # seq_data = get_seq_data(dcm.get(tag), exclude_tags)
                 # Check that the sequence is not empty
                 if seq_data:
                     header[tag] = seq_data
@@ -542,6 +445,7 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
                 # Note: no need to try/except, all files have already been open when calling get_dcm_data_dict
                 dcm_path = dcm_dict_el['path']
                 dcm = pydicom.dcmread(dcm_path, force=force)
+                dcm.decode()  # load all data element recursively and decoding value
                 break
         elif dcm_dict_el['size'] < 1:
             log.warning('%s is empty. Skipping.', os.path.basename(dcm_dict_el['path']))
@@ -745,7 +649,6 @@ if __name__ == '__main__':
     if split_on_seriesuid:
         try:
             split_seriesinstanceUID(dicom_filepath, output_folder, force_dicom_read)
-
         except Exception as err:
             log.error('split_seriesinstanceUID failed! err={}'.format(err), exc_info=True)
 
@@ -771,7 +674,8 @@ if __name__ == '__main__':
         template.update(import_template)
     json_template = template.copy()
 
-    metadatafile = dicom_to_json(dicom_filepath, output_folder, timezone, json_template, force=force_dicom_read)
+    with fw_pydicom_config():
+        metadatafile = dicom_to_json(dicom_filepath, output_folder, timezone, json_template, force=force_dicom_read)
 
     get_file_dict_and_update_metadata_json('dicom', metadatafile)
 

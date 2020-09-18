@@ -6,3 +6,4 @@ tzlocal~=2.0.0
 pandas~=1.0.1
 flywheel-sdk~=11.0.1
 backoff~=1.10.0
+flywheel-metadata-toolkit~=0.1.0b1
