@@ -3,7 +3,7 @@ import tempfile
 
 import pydicom
 import copy
-
+import re
 from pydicom.data import get_testdata_files
 
 from run import (
@@ -84,15 +84,48 @@ def test_fix_type_based_on_dicom_vm(caplog):
     assert "1 Dicom data elements were not type fixed based on VM" in caplog.messages[0]
 
 
-def test_get_pydicom_header_on_a_real_dicom_and_check_a_few_types(dicom_file):
+def test_get_pydicom_header_on_a_real_dicom_and_check_a_few_types():
     test_dicom_path = get_testdata_files("MR_small.dcm")[0]
-    dicom_path = dicom_file("invalid", "invalid_seriesdescription.dcm")
-    dcm = pydicom.read_file(dicom_path)
+    dcm = pydicom.read_file(test_dicom_path)
     header = get_pydicom_header(dcm)
     assert isinstance(header["EchoNumbers"], list)
     assert isinstance(header["ImageType"], list)
     assert not isinstance(header["SOPClassUID"], list)
     assert isinstance(header["SeriesInstanceUID"], str)
+
+
+def test_get_pydicom_header_all_tag_values():
+    exclude_tags = [
+        "[Unknown]",
+        "PixelData",
+        "Pixel Data",
+        "[User defined data]",
+        "[Protocol Data Block (compressed)]",
+        "[Histogram tables]",
+        "[Unique image iden]",
+    ]
+    test_dicom_path = get_testdata_files("MR_small.dcm")[0]
+    dcm = pydicom.read_file(test_dicom_path)
+    header = get_pydicom_header(dcm)
+
+    headers_that_we_care_about = [
+        header
+        for header in dcm.dir()
+        if (
+            header not in exclude_tags
+            and not isinstance(header, pydicom.sequence.Sequence)
+        )
+    ]
+    regex = r"^\((\d+), (\d+)\)$"
+    dicom_json = dcm.to_json_dict()
+    for element in dcm.elements():
+        key = element.keyword
+        if key not in headers_that_we_care_about:
+            continue
+        tag_match = re.match(regex, str(element.tag))
+        tag = "".join(tag_match.groups())
+        assert type(header[key]) == type(dicom_json[tag]["Value"])
+        assert header[key] == dicom_json[tag]["Value"]
 
 
 def test_fixVM1_fixed_VM_based_on_public_dict(dicom_file):
