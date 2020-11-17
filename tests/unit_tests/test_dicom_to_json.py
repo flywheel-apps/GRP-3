@@ -138,8 +138,8 @@ def test_get_pydicom_header_gen_csv():
             print(f"Didn't match {str(element.tag)}")
             continue
         tag = "".join(tag_match.groups()).upper()
-
-        vals[key] = header[key] if key in header else None
+        if key in header:
+            vals[key] = header[key]
 
 
 # import pprint
@@ -168,7 +168,8 @@ def test_get_pydicom_header_all_tags():
     ) as fp:
         known_good = json.load(fp)
         for key, val in known_good.items():
-            assert header[key] == val
+            if val:
+                assert header[key] == val
 
 
 def test_fixVM1_fixed_VM_based_on_public_dict(dicom_file):
