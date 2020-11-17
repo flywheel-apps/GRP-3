@@ -2,7 +2,7 @@ import os
 import tempfile
 from pathlib import Path
 
-import pandas as pd
+import json
 import pydicom
 import copy
 import re
@@ -96,16 +96,18 @@ def test_get_pydicom_header_on_a_real_dicom_and_check_a_few_types():
     assert isinstance(header["SeriesInstanceUID"], str)
 
 
-def test_get_pydicom_header_all_tag_values():
-    exclude_tags = [
-        "[Unknown]",
-        "PixelData",
-        "Pixel Data",
-        "[User defined data]",
-        "[Protocol Data Block (compressed)]",
-        "[Histogram tables]",
-        "[Unique image iden]",
-    ]
+exclude_tags = [
+    "[Unknown]",
+    "PixelData",
+    "Pixel Data",
+    "[User defined data]",
+    "[Protocol Data Block (compressed)]",
+    "[Histogram tables]",
+    "[Unique image iden]",
+]
+
+
+def test_get_pydicom_header_gen_csv():
     test_dicom_path = get_testdata_files("MR_small.dcm")[0]
     dcm = pydicom.read_file(test_dicom_path)
     header = get_pydicom_header(dcm)
@@ -118,7 +120,7 @@ def test_get_pydicom_header_all_tag_values():
             and not isinstance(header, pydicom.sequence.Sequence)
         )
     ]
-    vals = []
+    vals = {}
     regex = r"^\(([A-Fa-f0-9]+), ([A-Fa-f0-9]+)\)$"
     dicom_json = dcm.to_json_dict()
     for element in dcm.elements():
@@ -131,21 +133,42 @@ def test_get_pydicom_header_all_tag_values():
         except:
             print(f"Didn't work on {str(element.tag)}")
             continue
-        
+
         if not tag_match:
             print(f"Didn't match {str(element.tag)}")
             continue
         tag = "".join(tag_match.groups()).upper()
 
-        vals.append({
-            'header_key': key,
-            'header': (header[key] if key in header else None),
-            'dicom json key': tag,
-            'dicom json': ((dicom_json[tag]["Value"] if "Value" in dicom_json[tag] else None) if tag in dicom_json else None) 
-        })
+        vals[key] = header[key] if key in header else None
 
-    dat = pd.DataFrame(vals)
-    dat.to_csv(str(Path(__file__).parents[1]/ 'data/dicom_out.csv'))
+
+# import pprint
+
+
+# with open(
+# ) as fp:
+#     json.dump(vals, fp)
+# dat.to_csv(str(Path(__file__).parents[1] / "data/dicom_out.csv"))
+
+
+def test_get_pydicom_header_all_tags():
+    test_dicom_path = get_testdata_files("MR_small.dcm")[0]
+    dcm = pydicom.read_file(test_dicom_path)
+    header = get_pydicom_header(dcm)
+
+    headers_that_we_care_about = [
+        head
+        for head in dcm.dir()
+        if (
+            head not in exclude_tags and not isinstance(head, pydicom.sequence.Sequence)
+        )
+    ]
+    with open(
+        str(Path(__file__).parents[1] / "data/dicom_out_known_good.json"), "r"
+    ) as fp:
+        known_good = json.load(fp)
+        for key, val in known_good.items():
+            assert header[key] == val
 
 
 def test_fixVM1_fixed_VM_based_on_public_dict(dicom_file):
