@@ -1,6 +1,8 @@
 import os
 import tempfile
+from pathlib import Path
 
+import pandas as pd
 import pydicom
 import copy
 import re
@@ -116,16 +118,34 @@ def test_get_pydicom_header_all_tag_values():
             and not isinstance(header, pydicom.sequence.Sequence)
         )
     ]
-    regex = r"^\((\d+), (\d+)\)$"
+    vals = []
+    regex = r"^\(([A-Fa-f0-9]+), ([A-Fa-f0-9]+)\)$"
     dicom_json = dcm.to_json_dict()
     for element in dcm.elements():
         key = element.keyword
         if key not in headers_that_we_care_about:
             continue
-        tag_match = re.match(regex, str(element.tag))
-        tag = "".join(tag_match.groups())
-        assert type(header[key]) == type(dicom_json[tag]["Value"])
-        assert header[key] == dicom_json[tag]["Value"]
+        tag_match = None
+        try:
+            tag_match = re.match(regex, str(element.tag))
+        except:
+            print(f"Didn't work on {str(element.tag)}")
+            continue
+        
+        if not tag_match:
+            print(f"Didn't match {str(element.tag)}")
+            continue
+        tag = "".join(tag_match.groups()).upper()
+
+        vals.append({
+            'header_key': key,
+            'header': (header[key] if key in header else None),
+            'dicom json key': tag,
+            'dicom json': ((dicom_json[tag]["Value"] if "Value" in dicom_json[tag] else None) if tag in dicom_json else None) 
+        })
+
+    dat = pd.DataFrame(vals)
+    dat.to_csv(str(Path(__file__).parents[1]/ 'data/dicom_out.csv'))
 
 
 def test_fixVM1_fixed_VM_based_on_public_dict(dicom_file):
