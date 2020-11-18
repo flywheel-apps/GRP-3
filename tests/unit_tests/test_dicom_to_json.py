@@ -1,6 +1,7 @@
 import os
 import tempfile
 from pathlib import Path
+import pytest
 
 import json
 import pydicom
@@ -108,7 +109,7 @@ exclude_tags = [
 
 
 def test_get_pydicom_header_gen_csv():
-    test_dicom_path = get_testdata_files("MR_small.dcm")[0]
+    test_dicom_path = get_testdata_files("CT_small.dcm")[0]
     dcm = pydicom.read_file(test_dicom_path)
     header = get_pydicom_header(dcm)
 
@@ -141,18 +142,25 @@ def test_get_pydicom_header_gen_csv():
         if key in header:
             vals[key] = header[key]
 
+    # Left for development
+    # with open(
+    #    str(Path(__file__).parents[1] / "data/dicom_out_CT_small.json"), "w"
+    # ) as fp:
+    #    json.dump(vals, fp)
 
-# import pprint
 
-
-# with open(
-# ) as fp:
-#     json.dump(vals, fp)
 # dat.to_csv(str(Path(__file__).parents[1] / "data/dicom_out.csv"))
 
 
-def test_get_pydicom_header_all_tags():
-    test_dicom_path = get_testdata_files("MR_small.dcm")[0]
+@pytest.mark.parametrize(
+    "in_file,out_file",
+    [
+        ("MR_small.dcm", "dicom_out_known_good.json"),
+        ("CT_small.dcm", "dicom_out_CT_small.json"),
+    ],
+)
+def test_get_pydicom_header_all_tags(in_file, out_file):
+    test_dicom_path = get_testdata_files(in_file)[0]
     dcm = pydicom.read_file(test_dicom_path)
     header = get_pydicom_header(dcm)
 
@@ -163,9 +171,7 @@ def test_get_pydicom_header_all_tags():
             head not in exclude_tags and not isinstance(head, pydicom.sequence.Sequence)
         )
     ]
-    with open(
-        str(Path(__file__).parents[1] / "data/dicom_out_known_good.json"), "r"
-    ) as fp:
+    with open(str(Path(__file__).parents[1] / f"data/{out_file}"), "r") as fp:
         known_good = json.load(fp)
         for key, val in known_good.items():
             if val:
