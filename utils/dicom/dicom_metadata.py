@@ -212,6 +212,7 @@ def dicom_acquisition_date_handler(dicom_ds):
     return dicom_ds
 
 
+# Orphaned function
 def parse_file_dicom_metadata(dicom_ds):
     # Extract the header values
     header = {}
@@ -234,7 +235,7 @@ def parse_file_dicom_metadata(dicom_ds):
                 if value or value == 0:  # Some values are zero
                     # Put the value in the header
                     if (
-                        type(value) == str and len(value) < 10240
+                        isinstance(value, str) and len(value) < 10240
                     ):  # Max pydicom field length
                         header[tag] = format_string(value)
                     else:
