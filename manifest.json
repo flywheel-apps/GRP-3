@@ -53,6 +53,11 @@
       "description": "Force pydicom to read the input file. This option allows files that do not adhere to the DICOM standard to be read and parsed. (Default=False)",
       "type": "boolean",
       "default": false
+    },
+    "debug": {
+        "description": "Include debug output",
+        "type": "boolean",
+        "default": false
     }
   },
   "environment": {},
