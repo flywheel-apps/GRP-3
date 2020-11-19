@@ -15,11 +15,7 @@ def assign_type(s):
     """
     Sets the type of a given input.
     """
-    if (
-        type(s) == pydicom.valuerep.PersonName
-        or type(s) == pydicom.valuerep.PersonName3
-        or type(s) == pydicom.valuerep.PersonNameBase
-    ):
+    if isinstance(s, pydicom.valuerep.PersonName):
         return format_string(s)
     if type(s) == list or type(s) == pydicom.multival.MultiValue:
         try:
@@ -343,7 +339,7 @@ def get_pydicom_header(dcm):
                     else:
                         header[tag] = assign_type(value)
                 else:
-                    log.debug("No value found for tag: " + tag)
+                    log.log(5, "No value found for tag: " + tag)
 
             if type(dcm.get(tag)) == pydicom.sequence.Sequence:
                 seq_data = get_seq_data(dcm.get(tag), exclude_tags)
@@ -351,6 +347,6 @@ def get_pydicom_header(dcm):
                 if seq_data:
                     header[tag] = seq_data
         except:
-            log.debug("Failed to get " + tag)
+            log.info("Failed to get " + tag)
             pass
     return header
