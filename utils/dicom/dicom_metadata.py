@@ -324,6 +324,7 @@ def get_pydicom_header(dcm):
         "[Unique image iden]",
     ]
     tags = dcm.dir()
+    not_found_tags = []
     for tag in tags:
         try:
             if (tag not in exclude_tags) and (
@@ -339,7 +340,7 @@ def get_pydicom_header(dcm):
                     else:
                         header[tag] = assign_type(value)
                 else:
-                    log.log(5, "No value found for tag: " + tag)
+                    not_found_tags.append(tag)
 
             if type(dcm.get(tag)) == pydicom.sequence.Sequence:
                 seq_data = get_seq_data(dcm.get(tag), exclude_tags)
@@ -347,6 +348,7 @@ def get_pydicom_header(dcm):
                 if seq_data:
                     header[tag] = seq_data
         except:
-            log.info("Failed to get " + tag)
+            log.info("An exception was raised when getting tag %s", tag, exc_info=True)
             pass
+    log.debug("Couldn't find values for tags: " + str(not_found_tags))
     return header
