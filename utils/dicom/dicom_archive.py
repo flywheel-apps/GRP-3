@@ -244,14 +244,19 @@ class DicomArchive:
             log.warning('Dicom ImageOrientationPatient tag missing, skipping localizer splitting')
             return embedded_localizer
 
-
+        # Implement round-up scheme, python's internal rounding method uses a round-to-even approach 
+        # https://stackoverflow.com/questions/18473563/python-incorrect-rounding-with-floating-point-numbers
+        # Implement a round-up approach by hand
+        def round_up(n, decimals=0):
+            mult = 10 ** decimals
+            return math.ceil(n * multiplier) / multiplier
         # Apply some rounding
         # NOTE: It has been observed that, in some series, ImageOrientationPatient might be
         # slightly varying between slices even though the patient orientation remains the same (uncertain root cause).
         # If strictly splitting on ImageOrientationPatient "uniqueness" it leads in wrongly creating multiple series.
         # Applying a certain rounding threshold fixes this issue.
         def apply_rounding(t):
-            return tuple(map(lambda x: round(float(x), TOLERANCE_ON_ImageOrientationPatient), t))
+            return tuple(map(lambda x: round_up(float(x), TOLERANCE_ON_ImageOrientationPatient), t))
         iop_tuple_list = list(map(apply_rounding, iop_tuple_list))
 
         image_count = len(iop_tuple_list)
