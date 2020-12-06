@@ -36,3 +36,7 @@ def test_dicom_archive_class_validate():
         with pytest.raises(RuntimeError) as err:
             assert DicomArchive(not_dicom_path, extract_dir=temp_dir, validate=True)
         assert 'failed to parse DICOMs' in str(err.value)
+
+@pytest.mark.parametrize('raw,exp',[(-.0365001,-.036),[-.036,-.036]])
+def test_contains_localizer_round(raw,exp):
+    assert DicomArchive._apply_rounding([raw]) == (exp,)
