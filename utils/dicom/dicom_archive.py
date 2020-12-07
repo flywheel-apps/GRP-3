@@ -178,12 +178,13 @@ class DicomArchive:
             self.initialize_dataset(self.extract_dir)
 
         value_dict = dict()
+        iop_means = DicomArchive._iop_means(self.dicom_tag_value_list('ImageOrientationPatient'))
         for dicom_file in self.dataset_list:
             tag_value = dicom_file.header_dict.get(dicom_tag)
             if tag_value:
                 if type(tag_value) == list:
                     if dicom_tag == 'ImageOrientationPatient':  # rounding a little to avoid dropping images
-                        tag_value_key = DicomArchive._round_iop(tag_value).tolist()
+                        tag_value_key = tuple(np.around(np.array(tag_value) - iop_means).tolist())
                     else:
                         tag_value_key = tuple(tag_value)
                 else:
@@ -237,6 +238,10 @@ class DicomArchive:
                 continue
 
     @staticmethod
+    def _iop_means(iop_val_list):
+        return np.mean(np.array(iop_val_list),axis=0)
+
+    @staticmethod
     def _round_iop(iop_val_list):
         # Apply some rounding
         # NOTE: It has been observed that, in some series, ImageOrientationPatient might be
@@ -261,7 +266,7 @@ class DicomArchive:
             return embedded_localizer
 
         rounded_iops = DicomArchive._round_iop(iop_tuple_list)
-        unique_iops = np.unique(iop_arr_rounded,axis=0)
+        unique_iops = np.unique(rounded_iops,axis=0)
 
         image_count = rounded_iops.shape[0]
         nunique_iop = unique_iops.shape[0]
