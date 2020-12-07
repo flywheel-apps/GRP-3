@@ -3,6 +3,7 @@ import contextlib
 import logging
 import os
 import math
+import numpy as np
 import re
 import shutil
 import tempfile
@@ -182,7 +183,7 @@ class DicomArchive:
             if tag_value:
                 if type(tag_value) == list:
                     if dicom_tag == 'ImageOrientationPatient':  # rounding a little to avoid dropping images
-                        tag_value_key = tuple(map(lambda x: round(x, TOLERANCE_ON_ImageOrientationPatient), tag_value))
+                        tag_value_key = DicomArchive._round_iop(tag_value).tolist()
                     else:
                         tag_value_key = tuple(tag_value)
                 else:
@@ -236,21 +237,18 @@ class DicomArchive:
                 continue
 
     @staticmethod
-    def _round_up(n, decimals=0):
-        # Implement round-up scheme, python's internal rounding method uses a round-to-even approach 
-        # https://stackoverflow.com/questions/18473563/python-incorrect-rounding-with-floating-point-numbers
-        # Implement a round-up approach by hand
-        mult = 10 ** decimals
-        return math.ceil(n * mult) / mult
-    
-    @staticmethod
-    def _apply_rounding(t):
+    def _round_iop(iop_val_list):
         # Apply some rounding
         # NOTE: It has been observed that, in some series, ImageOrientationPatient might be
         # slightly varying between slices even though the patient orientation remains the same (uncertain root cause).
         # If strictly splitting on ImageOrientationPatient "uniqueness" it leads in wrongly creating multiple series.
-        # Applying a certain rounding threshold fixes this issue.
-        return tuple(map(lambda x: DicomArchive._round_up(float(x), TOLERANCE_ON_ImageOrientationPatient), t))
+        
+        # This method subtracts the mean across the archive from each coordinate of ImageOrientationPatient
+        # Then rounds to the number of decimal points specified in TOLERANCE_ON_ImageOrientationPatient
+        iop_arr = np.array(iop_val_list)
+        iop_arr = iop_arr - np.mean(iop_arr,axis=0)
+        iop_arr_rounded = np.around(iop_arr, decimals=TOLERANCE_ON_ImageOrientationPatient)
+        return iop_arr_rounded
 
     def contains_embedded_localizer(self):
         embedded_localizer = False
@@ -262,12 +260,11 @@ class DicomArchive:
             log.warning('Dicom ImageOrientationPatient tag missing, skipping localizer splitting')
             return embedded_localizer
 
+        rounded_iops = DicomArchive._round_iop(iop_tuple_list)
+        unique_iops = np.unique(iop_arr_rounded,axis=0)
 
-        iop_tuple_list = list(map(DicomArchive._apply_rounding, iop_tuple_list))
-
-        image_count = len(iop_tuple_list)
-        iop_tuple_set = set(iop_tuple_list)
-        nunique_iop = len(iop_tuple_set)
+        image_count = rounded_iops.shape[0]
+        nunique_iop = unique_iops.shape[0]
         # If there's more than one unique IOP, it's a localizer
         if nunique_iop > 1:
             # Only a scan series with embedded localizer if the number of unique IOP

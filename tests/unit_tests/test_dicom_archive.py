@@ -37,6 +37,8 @@ def test_dicom_archive_class_validate():
             assert DicomArchive(not_dicom_path, extract_dir=temp_dir, validate=True)
         assert 'failed to parse DICOMs' in str(err.value)
 
-@pytest.mark.parametrize('raw,exp',[(-.0365001,-.036),[-.036,-.036]])
-def test_contains_localizer_round(raw,exp):
-    assert DicomArchive._apply_rounding([raw]) == (exp,)
+def test_contains_localizer_round():
+    im_arr = [[0.9989550114, 0.04570378363, 0, 0, 0, -1], [0.9989550114, 0.04570382088, 0, 0, 0, -1], [0.9989550114, 0.04570381716, 0, 0, 0, -1], [0.9989550114, 0.04570382088, 0, 0, 0, -1],[1, 0, 0, 0, 1, 0]]
+    out = [[-0.0, 0.009, 0.0, 0.0, -0.2, -0.2], [-0.0, 0.009, 0.0, 0.0, -0.2, -0.2], [-0.0, 0.009, 0.0, 0.0, -0.2, -0.2], [-0.0, 0.009, 0.0, 0.0, -0.2, -0.2], [0.001, -0.037, 0.0, 0.0, 0.8, 0.8]]
+
+    assert DicomArchive._round_iop(im_arr).tolist() ==  out
