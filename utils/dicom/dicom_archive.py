@@ -2,7 +2,6 @@ import collections
 import contextlib
 import logging
 import os
-import math
 import numpy as np
 import re
 import shutil
@@ -178,13 +177,17 @@ class DicomArchive:
             self.initialize_dataset(self.extract_dir)
 
         value_dict = dict()
+        # Store means of IOP across archive
         iop_means = DicomArchive._iop_means(self.dicom_tag_value_list('ImageOrientationPatient'))
         for dicom_file in self.dataset_list:
             tag_value = dicom_file.header_dict.get(dicom_tag)
             if tag_value:
                 if type(tag_value) == list:
                     if dicom_tag == 'ImageOrientationPatient':  # rounding a little to avoid dropping images
-                        tag_value_key = tuple(np.around(np.array(tag_value) - iop_means).tolist())
+                        # Subtract mean from value and round to specificied number of decimals
+                        tag_value_key = tuple(
+                            np.around(np.array(tag_value) - iop_means,
+                            decimals=TOLERANCE_ON_ImageOrientationPatient).tolist())
                     else:
                         tag_value_key = tuple(tag_value)
                 else:
@@ -239,6 +242,7 @@ class DicomArchive:
 
     @staticmethod
     def _iop_means(iop_val_list):
+        # Return means of image orientation patient across the archive
         return np.mean(np.array(iop_val_list),axis=0)
 
     @staticmethod
@@ -247,7 +251,7 @@ class DicomArchive:
         # NOTE: It has been observed that, in some series, ImageOrientationPatient might be
         # slightly varying between slices even though the patient orientation remains the same (uncertain root cause).
         # If strictly splitting on ImageOrientationPatient "uniqueness" it leads in wrongly creating multiple series.
-        
+
         # This method subtracts the mean across the archive from each coordinate of ImageOrientationPatient
         # Then rounds to the number of decimal points specified in TOLERANCE_ON_ImageOrientationPatient
         iop_arr = np.array(iop_val_list)
