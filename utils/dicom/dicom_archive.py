@@ -184,7 +184,11 @@ class DicomArchive:
             if tag_value:
                 if type(tag_value) == list:
                     if dicom_tag == 'ImageOrientationPatient':  # rounding a little to avoid dropping images
-                        # Subtract mean from value and round to specificied number of decimals
+                        # Subtract mean in order to prevent rounding errors close to the rounding cutoff.
+                        # around uses a cutoff of the decimal .5, so If we use a three decimal rounding, the 
+                        # cutoff is .0005, i.e. .0005 rounds down to 0.000, but .000501 rounds up to .001
+                        # Removing the mean before rounding reduces the likelihood that this could happen since
+                        # The mean should be very close to 0, and the localizer should be the only one that isn't at 0.
                         tag_value_key = tuple(
                             np.around(np.array(tag_value) - iop_means,
                             decimals=TOLERANCE_ON_ImageOrientationPatient).tolist())
