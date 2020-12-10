@@ -2,6 +2,7 @@ import collections
 import contextlib
 import logging
 import os
+import numpy as np
 import re
 import shutil
 import tempfile
@@ -176,12 +177,21 @@ class DicomArchive:
             self.initialize_dataset(self.extract_dir)
 
         value_dict = dict()
+        # Store means of IOP across archive
+        iop_means = DicomArchive._iop_means(self.dicom_tag_value_list('ImageOrientationPatient'))
         for dicom_file in self.dataset_list:
             tag_value = dicom_file.header_dict.get(dicom_tag)
             if tag_value:
                 if type(tag_value) == list:
                     if dicom_tag == 'ImageOrientationPatient':  # rounding a little to avoid dropping images
-                        tag_value_key = tuple(map(lambda x: round(x, TOLERANCE_ON_ImageOrientationPatient), tag_value))
+                        # Subtract mean in order to prevent rounding errors close to the rounding cutoff.
+                        # around uses a cutoff of the decimal .5, so If we use a three decimal rounding, the 
+                        # cutoff is .0005, i.e. .0005 rounds down to 0.000, but .000501 rounds up to .001
+                        # Removing the mean before rounding reduces the likelihood that this could happen since
+                        # The mean should be very close to 0, and the localizer should be the only one that isn't at 0.
+                        tag_value_key = tuple(
+                            np.around(np.array(tag_value) - iop_means,
+                            decimals=TOLERANCE_ON_ImageOrientationPatient).tolist())
                     else:
                         tag_value_key = tuple(tag_value)
                 else:
@@ -234,6 +244,25 @@ class DicomArchive:
             else:
                 continue
 
+    @staticmethod
+    def _iop_means(iop_val_list):
+        # Return means of image orientation patient across the archive
+        return np.mean(np.array(iop_val_list),axis=0)
+
+    @staticmethod
+    def _round_iop(iop_val_list):
+        # Apply some rounding
+        # NOTE: It has been observed that, in some series, ImageOrientationPatient might be
+        # slightly varying between slices even though the patient orientation remains the same (uncertain root cause).
+        # If strictly splitting on ImageOrientationPatient "uniqueness" it leads in wrongly creating multiple series.
+
+        # This method subtracts the mean across the archive from each coordinate of ImageOrientationPatient
+        # Then rounds to the number of decimal points specified in TOLERANCE_ON_ImageOrientationPatient
+        iop_arr = np.array(iop_val_list)
+        iop_arr = iop_arr - np.mean(iop_arr,axis=0)
+        iop_arr_rounded = np.around(iop_arr, decimals=TOLERANCE_ON_ImageOrientationPatient)
+        return iop_arr_rounded
+
     def contains_embedded_localizer(self):
         embedded_localizer = False
         iop_value_list = self.dicom_tag_value_list('ImageOrientationPatient')
@@ -244,19 +273,11 @@ class DicomArchive:
             log.warning('Dicom ImageOrientationPatient tag missing, skipping localizer splitting')
             return embedded_localizer
 
+        rounded_iops = DicomArchive._round_iop(iop_tuple_list)
+        unique_iops = np.unique(rounded_iops,axis=0)
 
-        # Apply some rounding
-        # NOTE: It has been observed that, in some series, ImageOrientationPatient might be
-        # slightly varying between slices even though the patient orientation remains the same (uncertain root cause).
-        # If strictly splitting on ImageOrientationPatient "uniqueness" it leads in wrongly creating multiple series.
-        # Applying a certain rounding threshold fixes this issue.
-        def apply_rounding(t):
-            return tuple(map(lambda x: round(float(x), TOLERANCE_ON_ImageOrientationPatient), t))
-        iop_tuple_list = list(map(apply_rounding, iop_tuple_list))
-
-        image_count = len(iop_tuple_list)
-        iop_tuple_set = set(iop_tuple_list)
-        nunique_iop = len(iop_tuple_set)
+        image_count = rounded_iops.shape[0]
+        nunique_iop = unique_iops.shape[0]
         # If there's more than one unique IOP, it's a localizer
         if nunique_iop > 1:
             # Only a scan series with embedded localizer if the number of unique IOP
