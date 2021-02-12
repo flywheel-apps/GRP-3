@@ -177,8 +177,11 @@ class DicomArchive:
             self.initialize_dataset(self.extract_dir)
 
         value_dict = dict()
-        # Store means of IOP across archive
-        iop_means = DicomArchive._iop_means(self.dicom_tag_value_list('ImageOrientationPatient'))
+
+        if dicom_tag == 'ImageOrientationPatient':
+            # Store means of IOP across archive
+            iop_means = DicomArchive._iop_means(self.dicom_tag_value_list('ImageOrientationPatient'))
+
         for dicom_file in self.dataset_list:
             tag_value = dicom_file.header_dict.get(dicom_tag)
             if tag_value:
