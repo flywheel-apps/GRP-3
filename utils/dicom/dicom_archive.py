@@ -250,6 +250,7 @@ class DicomArchive:
     @staticmethod
     def _iop_means(iop_val_list):
         # Return means of image orientation patient across the archive
+        iop_val_list = [v for v in iop_val_list if v is not None]
         return np.mean(np.array(iop_val_list),axis=0)
 
     @staticmethod
