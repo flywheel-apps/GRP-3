@@ -702,7 +702,12 @@ def dicom_to_json(file_path, outbase, timezone, json_template, force=False):
     # File metadata
     pydicom_file = {}
     pydicom_file["name"] = os.path.basename(file_path)
-    pydicom_file["modality"] = format_string(dcm.get("Modality", "MR"))
+    if dcm.get('Modality'):
+        pydicom_file["modality"] = format_string(dcm.get("Modality"))
+    else:
+        log.warning('No modality found.')
+        pydicom_file["modality"] = None
+
     pydicom_file["info"] = {"header": {"dicom": {}}}
 
     # Acquisition metadata
